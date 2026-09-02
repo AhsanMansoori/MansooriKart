@@ -1,0 +1,19 @@
+import express from 'express';
+import { z } from 'zod';
+import { requireAuth } from '../../middleware/auth.js';
+import { validate } from '../../middleware/validate.js';
+import * as controller from '../../controllers/cartController.js';
+
+const router = express.Router();
+const item = z.object({ productId: z.string().regex(/^[a-f\d]{24}$/i), quantity: z.number().int().min(1).max(99) }).strict();
+const quantity = z.object({ quantity: z.number().int().min(1).max(99) }).strict();
+const merge = z.object({ items: z.array(item).max(50) }).strict();
+const productParams = z.object({ productId: z.string().regex(/^[a-f\d]{24}$/i) }).strict();
+router.use(requireAuth);
+router.get('/', controller.get);
+router.post('/items', validate(item), controller.add);
+router.post('/merge', validate(merge), controller.merge);
+router.patch('/items/:productId', validate(productParams, 'params'), validate(quantity), controller.update);
+router.delete('/items/:productId', validate(productParams, 'params'), controller.remove);
+router.delete('/', controller.clear);
+export default router;
