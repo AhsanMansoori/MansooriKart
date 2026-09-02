@@ -74,7 +74,7 @@ export async function adjustStock(input: {
   referenceId?: string | undefined;
   warehouseId?: string | undefined;
   locationId?: string | undefined;
-  type?: 'INITIAL' | 'RESTOCK' | 'ORDER' | 'CANCELLATION' | 'RETURN' | 'ADJUSTMENT' | undefined;
+  type?: 'INITIAL' | 'RESTOCK' | 'ORDER' | 'CANCELLATION' | 'RETURN' | 'ADJUSTMENT' | 'PURCHASE_RECEIPT' | 'PURCHASE_RETURN' | undefined;
 }) {
   if (!Number.isInteger(input.quantityDelta) || input.quantityDelta === 0)
     throw new InventoryError('INVALID_ADJUSTMENT', 'Stock adjustment must be a non-zero integer.');

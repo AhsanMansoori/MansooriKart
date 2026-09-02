@@ -21,6 +21,8 @@ import adminInventoryErpRoutes from './routes/v1/adminInventoryErp.js';
 import adminReturnsRoutes from './routes/v1/adminReturns.js';
 import adminSalesRoutes from './routes/v1/adminSales.js';
 import adminAbandonedCartRoutes from './routes/v1/adminAbandonedCarts.js';
+import adminCustomerRoutes from './routes/v1/adminCustomers.js';
+import adminPurchasingRoutes from './routes/v1/adminPurchasing.js';
 
 /**
  * Clean TypeScript composition root. Route families are ported here incrementally;
@@ -58,6 +60,8 @@ export function createApp(config: BackendConfig = getConfig()): express.Express 
   app.use('/api/v1/admin', adminReturnsRoutes);
   app.use('/api/v1/admin', adminSalesRoutes);
   app.use('/api/v1/admin', adminAbandonedCartRoutes);
+  app.use('/api/v1/admin', adminCustomerRoutes);
+  app.use('/api/v1/admin', adminPurchasingRoutes);
   app.use('/api/v1/reviews', reviewRoutes);
   app.use('/api/v1/admin', adminReviewRoutes);
   app.use(notFound);

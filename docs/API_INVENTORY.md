@@ -109,3 +109,56 @@ Design notes: [ORDERS_SALES_ARCHITECTURE.md](./ORDERS_SALES_ARCHITECTURE.md).
 Payment provider integration, Google Login, anonymous/guest abandoned carts, and
 automatic restock of returned goods are deferred. No legacy `/api/*` route and no
 frontend application code was modified.
+
+## Customers ERP
+
+Design notes: [CUSTOMERS_ERP_ARCHITECTURE.md](./CUSTOMERS_ERP_ARCHITECTURE.md).
+
+| Method | Path                                 | Access      | Purpose                                               | Implemented | Tested          | Frontend needed |
+| ------ | ------------------------------------ | ----------- | ----------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/admin/customers`            | Super Admin | Filtered, sorted, paginated customers with real stats | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/customers/analytics`  | Super Admin | Totals, segment counts, top customers                 | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/customers/:id`        | Super Admin | 360° view over existing domain collections            | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/customers/:id/orders` | Super Admin | Paginated order history                               | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/customers/:id/status` | Super Admin | Audited `ACTIVE` ⇄ `SUSPENDED`; the only mutation     | Yes         | Real-Mongo HTTP | Later           |
+
+No duplicate customer collection was created, no admin route writes `User.role`, and there is
+deliberately no generic `PATCH /api/v1/admin/customers/:id`. Customer groups, loyalty tiers,
+marketing campaigns, and GDPR erasure/export are deferred.
+
+## Purchasing ERP
+
+Design notes: [PURCHASING_ARCHITECTURE.md](./PURCHASING_ARCHITECTURE.md).
+
+| Method | Path                                         | Access      | Purpose                                                   | Implemented | Tested          | Frontend needed |
+| ------ | -------------------------------------------- | ----------- | --------------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/admin/suppliers`                    | Super Admin | Filtered, sorted, paginated supplier list                 | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/suppliers`                    | Super Admin | Create supplier; no banking or credential fields          | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/suppliers/:id`                | Super Admin | Supplier with open-order count and goods-in value         | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/suppliers/:id`                | Super Admin | Update supplier                                           | Yes         | Real-Mongo HTTP | Later           |
+| DELETE | `/api/v1/admin/suppliers/:id`                | Super Admin | Archive; refused while purchase orders are open           | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/suppliers/:id/performance`    | Super Admin | Real order, receiving, and return statistics              | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/purchase-orders`              | Super Admin | List by status, supplier, warehouse, product, date, total | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/purchase-orders`              | Super Admin | Create `DRAFT`; server-computed totals and `poNumber`     | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/purchase-orders/:id`          | Super Admin | Detail with receipts and supplier returns                 | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/purchase-orders/:id`          | Super Admin | Edit `DRAFT` only                                         | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/purchase-orders/:id/submit`   | Super Admin | → `PENDING_APPROVAL`                                      | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/purchase-orders/:id/approve`  | Super Admin | → `APPROVED`; moves no stock                              | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/purchase-orders/:id/cancel`   | Super Admin | → `CANCELLED`; blocked once goods are received            | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/purchase-orders/:id/close`    | Super Admin | → `CLOSED`                                                | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/purchase-orders/:id/receipts` | Super Admin | Idempotent goods receipt; accepted units increase stock   | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/purchase-orders/:id/receipts` | Super Admin | Receipts for one purchase order                           | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/goods-receipts`, `/:id`       | Super Admin | Receipt list and detail                                   | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/purchase-orders/:id/returns`  | Super Admin | Idempotent supplier return; decreases stock               | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/purchase-returns`             | Super Admin | Supplier return list                                      | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/purchasing/dashboard`         | Super Admin | Live procurement aggregates; no accounting semantics      | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/purchasing/reports`           | Super Admin | Grouped by supplier, product, or date                     | Yes         | Real-Mongo HTTP | Later           |
+
+`InventoryBalance` remains the stock authority and `Product.stock` remains its synchronized
+mirror; only accepted received quantity increases stock, and only through the existing
+inventory service. Purchase returns are implemented (not deferred). Cost price policy is
+`LATEST_PURCHASE_COST` — FIFO, LIFO, weighted average, and standard costing are explicitly not
+implemented. Finance (expense ledger, accounts payable, supplier payment, supplier refunds,
+profit and loss, accounting journals), payment providers, supplier portals/logins, and all
+purchasing frontend surfaces are deferred. No legacy `/api/*` route and no frontend
+application code was modified in this phase.
