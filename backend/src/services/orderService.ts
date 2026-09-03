@@ -83,6 +83,12 @@ export async function checkout(
   const items = cart.items.map((entry: any) => {
     const product: any = byId.get(String(entry.product));
     if (!product || entry.quantity < 1 || entry.quantity > product.stock) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
+    // Server-derived cost snapshot on the LATEST_PURCHASE_COST basis. Frozen at
+    // creation so a later `Product.costPrice` change cannot rewrite historical
+    // profit. A product with no recorded cost stores no snapshot at all rather
+    // than a zero, so finance reports cost coverage honestly instead of implying
+    // the goods were free.
+    const unitCost = typeof product.costPrice === 'number' && product.costPrice >= 0 ? money(product.costPrice) : undefined;
     return {
       productId: product._id,
       name: product.name,
@@ -91,6 +97,7 @@ export async function checkout(
       unitPrice: product.price,
       quantity: entry.quantity,
       lineSubtotal: money(product.price * entry.quantity),
+      ...(unitCost === undefined ? {} : { unitCost, lineCost: money(unitCost * entry.quantity) }),
     };
   });
   const subtotal = money(items.reduce((sum: number, item: any) => sum + item.lineSubtotal, 0));

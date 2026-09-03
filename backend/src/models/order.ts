@@ -9,6 +9,14 @@ const item = new Schema(
     unitPrice: Number,
     quantity: Number,
     lineSubtotal: Number,
+    // Immutable cost-of-goods snapshot taken from the product at order creation
+    // using the LATEST_PURCHASE_COST basis. Later `Product.costPrice` changes
+    // must never move historical profit, so cost is frozen here rather than
+    // joined at report time. Absent on orders created before snapshots existed;
+    // such lines contribute revenue but no cost, and finance responses report
+    // that coverage explicitly instead of guessing a cost.
+    unitCost: Number,
+    lineCost: Number,
   },
   { _id: false }
 );
@@ -65,4 +73,7 @@ orderSchema.index({ customer: 1, idempotencyKey: 1 }, { unique: true });
 orderSchema.index({ customer: 1, createdAt: -1 });
 orderSchema.index({ orderStatus: 1, createdAt: -1 });
 orderSchema.index({ paymentStatus: 1, createdAt: -1 });
+// Finance and report aggregates window on `createdAt` alone; no existing index
+// leads with it, so a date-bounded scan would otherwise read the collection.
+orderSchema.index({ createdAt: -1 });
 export const Order: any = (models.V1Order as Model<any>) || model('V1Order', orderSchema);

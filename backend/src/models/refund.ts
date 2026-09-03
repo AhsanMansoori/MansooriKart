@@ -17,4 +17,7 @@ const schema = new Schema(
 );
 schema.index({ order: 1, idempotencyKey: 1 }, { unique: true });
 schema.index({ order: 1, createdAt: -1 });
+// Finance windows refunds on `createdAt` and filters `status: { $ne: 'FAILED' }`,
+// which no index can select on, so the date bound is what needs the index.
+schema.index({ createdAt: -1 });
 export const Refund: any = (models.Refund as Model<any>) || model('Refund', schema);

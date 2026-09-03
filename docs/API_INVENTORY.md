@@ -158,7 +158,65 @@ Design notes: [PURCHASING_ARCHITECTURE.md](./PURCHASING_ARCHITECTURE.md).
 mirror; only accepted received quantity increases stock, and only through the existing
 inventory service. Purchase returns are implemented (not deferred). Cost price policy is
 `LATEST_PURCHASE_COST` — FIFO, LIFO, weighted average, and standard costing are explicitly not
-implemented. Finance (expense ledger, accounts payable, supplier payment, supplier refunds,
-profit and loss, accounting journals), payment providers, supplier portals/logins, and all
-purchasing frontend surfaces are deferred. No legacy `/api/*` route and no frontend
-application code was modified in this phase.
+implemented. The expense ledger and profit-and-loss statement listed as deferred here landed in
+the Finance phase below; accounts payable, supplier payment, supplier refunds, accounting
+journals, payment providers, supplier portals/logins, and all purchasing frontend surfaces
+remain deferred. No legacy `/api/*` route and no frontend application code was modified in this
+phase.
+
+## Finance ERP
+
+Design notes: [FINANCE_ARCHITECTURE.md](./FINANCE_ARCHITECTURE.md).
+
+| Method | Path                                | Access      | Purpose                                                          | Implemented | Tested          | Frontend needed |
+| ------ | ----------------------------------- | ----------- | ---------------------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/admin/expenses`            | Super Admin | Whitelisted filter, sort, and pagination over the expense ledger | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/expenses`            | Super Admin | Create `DRAFT`; server owns `expenseNumber` and `totalAmount`    | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/expenses/summary`    | Super Admin | Range totals by status and category                              | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/expenses/:id`        | Super Admin | Expense detail with status history                               | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/expenses/:id`        | Super Admin | Edit `DRAFT` only; amounts immutable once approved               | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/expenses/:id/status` | Super Admin | `SUBMITTED` / `APPROVED` / `VOIDED`; void replaces deletion      | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/finance/dashboard`   | Super Admin | Revenue, refunds, COGS, expenses, profit for one window          | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/finance/analytics`   | Super Admin | Daily revenue, refund, expense, and tax series                   | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/finance/profit-loss` | Super Admin | Operating statement; not audited net income                      | Yes         | Real-Mongo HTTP | Later           |
+
+`financeService` owns every money formula, so no endpoint invents its own arithmetic. Realized
+revenue is `DELIVERED` **and** `PAID` order totals only — a cancelled order and an unpaid COD
+order are both excluded. Refunds in any status except `FAILED` reduce revenue. COGS reads the
+immutable `Order.items.lineCost` snapshot under the `LATEST_PURCHASE_COST` basis, so later
+`Product.costPrice` edits cannot rewrite history. Only `APPROVED` expenses reach operating
+profit; `DRAFT`, `SUBMITTED`, and `VOIDED` never do, and raising or approving a purchase order
+still creates no expense. A dedicated `Payment` collection is deliberately deferred because
+`Order.paymentStatus` plus `Refund` records are sufficient for a COD launch. No double-entry
+ledger, chart of accounts, journal entry, balance sheet, accounts-payable aging, payroll, or
+depreciation exists, and no payment provider is integrated.
+
+## Reporting ERP
+
+Design notes: [REPORTING_ARCHITECTURE.md](./REPORTING_ARCHITECTURE.md).
+
+| Method | Path                                        | Access      | Purpose                                                        | Implemented | Tested          | Frontend needed |
+| ------ | ------------------------------------------- | ----------- | -------------------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/admin/reports`                     | Super Admin | Self-describing index; declares export unavailable             | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/sales`               | Super Admin | Revenue, refunds, units, status mix, daily trend, top products | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/products`            | Super Admin | Per-product revenue, COGS, profit, returns, stock posture      | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/inventory`           | Super Admin | Point-in-time stock, availability, valuation; takes no range   | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/inventory-movements` | Super Admin | Ledger activity grouped by type, date, or product              | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/customers`           | Super Admin | Acquisition, repeat rate, per-customer spend                   | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/orders`              | Super Admin | Fulfilment mix, cancellation rate, ship and deliver timing     | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/purchases`           | Super Admin | Commitment, receiving, acceptance, outstanding, returns        | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/finance`             | Super Admin | The finance figures in report shape                            | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/profit`              | Super Admin | Profitability by summary, date, product, or category           | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/reports/tax`                 | Super Admin | Sales tax recorded, expense tax recorded, net position         | Yes         | Real-Mongo HTTP | Later           |
+
+Every report is a Mongo aggregation — no handler loads a collection into JavaScript to reduce
+it. Windowed reports cap at 366 days and row reports cap at 100 rows per page, so no request can
+ask for an unbounded result. Sort keys, `groupBy` dimensions, filters, and search terms are fixed
+vocabularies; search input is regex-escaped, so `.*` matches literally. Sales, product, profit,
+order, customer, finance, and tax figures read order and purchase-order snapshots and therefore
+do not move when the catalogue or a supplier is edited; inventory valuation
+(`LATEST_PURCHASE_COST`) and supplier display labels are the two deliberate current-value views.
+`InventoryBalance` is the only stock authority — no report reads `Product.stock`. CSV and XLSX
+export, scheduled report delivery, and the whole Import/Export ERP module are deferred, which
+the report index states machine-readably. No report writes data, and no reporting warehouse,
+materialised summary collection, or rollup job was created.

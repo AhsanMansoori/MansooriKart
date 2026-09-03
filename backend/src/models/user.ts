@@ -15,5 +15,8 @@ const userSchema = new Schema(
   },
   { timestamps: true, collection: 'users' }
 );
+// Customer registration reporting counts by role inside a date window, and the
+// customers ERP lists customers newest-first, so role must lead the index.
+userSchema.index({ role: 1, createdAt: -1 });
 export type UserDocument = InferSchemaType<typeof userSchema>;
 export const User: any = (models.User as Model<any>) || model('User', userSchema);
