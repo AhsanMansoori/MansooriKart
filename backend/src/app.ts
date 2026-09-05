@@ -29,6 +29,10 @@ import adminCatalogImportRoutes from './routes/v1/adminCatalogImports.js';
 import adminPricingRoutes from './routes/v1/adminPricing.js';
 import adminSupplierSourceRoutes from './routes/v1/adminSupplierSources.js';
 import adminDropshipFulfillmentRoutes from './routes/v1/adminDropshipFulfillments.js';
+import adminMarketingRoutes from './routes/v1/adminMarketing.js';
+import adminCmsRoutes from './routes/v1/adminCms.js';
+import adminSettingsRoutes from './routes/v1/adminSettings.js';
+import storefrontRoutes from './routes/v1/storefront.js';
 
 /**
  * Clean TypeScript composition root. Route families are ported here incrementally;
@@ -61,6 +65,9 @@ export function createApp(config: BackendConfig = getConfig()): express.Express 
 
   // Public catalog must be mounted before the broad authenticated `/api/v1` order router.
   app.use('/api/v1', catalogRoutes);
+  // Public storefront configuration and content, for the same reason: these routes are
+  // unauthenticated and must not fall through to the router that requires a customer.
+  app.use('/api/v1', storefrontRoutes);
   app.use('/api/v1', orderRoutes);
   app.use('/api/v1/admin', adminOrderRoutes);
   app.use('/api/v1/admin', adminReturnsRoutes);
@@ -74,6 +81,9 @@ export function createApp(config: BackendConfig = getConfig()): express.Express 
   app.use('/api/v1/admin', adminPricingRoutes);
   app.use('/api/v1/admin', adminSupplierSourceRoutes);
   app.use('/api/v1/admin', adminDropshipFulfillmentRoutes);
+  app.use('/api/v1/admin', adminMarketingRoutes);
+  app.use('/api/v1/admin', adminCmsRoutes);
+  app.use('/api/v1/admin', adminSettingsRoutes);
   app.use('/api/v1/reviews', reviewRoutes);
   app.use('/api/v1/admin', adminReviewRoutes);
   app.use(notFound);

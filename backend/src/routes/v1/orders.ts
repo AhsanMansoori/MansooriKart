@@ -35,11 +35,17 @@ const listQuery = z
   .strict();
 // `DROPSHIP_UNAVAILABLE` is the supplier-side twin of `STOCK_UNAVAILABLE`: a well-formed
 // request for goods that are not obtainable, so it answers 409 alongside it (§30).
+// `PAYMENT_METHOD_UNAVAILABLE` joins them because it is also a valid request refused by
+// current store state, not a malformed one.
 const fail = (e: unknown, r: any, s: any, n: any) =>
   e instanceof OrderError
     ? sendFailure(
         s,
-        e.code === 'ORDER_NOT_FOUND' || e.code === 'ADDRESS_NOT_FOUND' ? 404 : e.code === 'STOCK_UNAVAILABLE' || e.code === 'DROPSHIP_UNAVAILABLE' ? 409 : 400,
+        e.code === 'ORDER_NOT_FOUND' || e.code === 'ADDRESS_NOT_FOUND'
+          ? 404
+          : e.code === 'STOCK_UNAVAILABLE' || e.code === 'DROPSHIP_UNAVAILABLE' || e.code === 'PAYMENT_METHOD_UNAVAILABLE'
+            ? 409
+            : 400,
         e.code,
         e.message,
         r.requestId

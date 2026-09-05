@@ -18,19 +18,18 @@ Supplier CSV **import** is implemented in the TypeScript v1 runtime — see "CSV
 
 ## Super Admin core and catalog additions
 
-| Method             | Path                                      | Access      | Purpose                                          | Implemented | Tested          | Frontend needed |
-| ------------------ | ----------------------------------------- | ----------- | ------------------------------------------------ | ----------- | --------------- | --------------- |
-| GET                | `/api/v1/admin/dashboard`                 | Super Admin | Real KPI, recent orders, low stock, paid revenue | Yes         | Real-Mongo HTTP | Later           |
-| GET                | `/api/v1/admin/dashboard/sales`           | Super Admin | Bounded realized-revenue aggregate               | Yes         | Real-Mongo HTTP | Later           |
-| GET                | `/api/v1/admin/dashboard/orders/products` | Super Admin | Bounded order/product aggregates                 | Yes         | Real-Mongo HTTP | Later           |
-| GET                | `/api/v1/admin/audit-logs`                | Super Admin | Safe paginated audit listing                     | Yes         | Real-Mongo HTTP | Later           |
-| GET                | `/api/v1/admin/system/health`             | Super Admin | Safe operational health                          | Yes         | Real-Mongo HTTP | Later           |
-| GET/POST/PATCH/DEL | `/api/v1/admin/products`                  | Super Admin | Product management; DELETE archives              | Yes         | Real-Mongo HTTP | Later           |
-| GET/POST/PATCH/DEL | `/api/v1/admin/categories`                | Super Admin | Category management; DELETE archives             | Yes         | Real-Mongo HTTP | Later           |
-| GET/POST/PATCH/DEL | `/api/v1/admin/brands`                    | Super Admin | Brand management; DELETE archives                | Yes         | Real-Mongo HTTP | Later           |
-| GET/POST/PATCH/DEL | `/api/v1/admin/product-types`             | Super Admin | Nullable/backfillable product-type management    | Yes         | Real-Mongo HTTP | Later           |
-| GET/POST/PATCH/DEL | `/api/v1/admin/attributes`                | Super Admin | Generic attributes with controlled values        | Yes         | Real-Mongo HTTP | Later           |
-| GET/POST/PATCH/DEL | `/api/v1/admin/badges`                    | Super Admin | Reusable product badge management                | Yes         | Real-Mongo HTTP | Later           |
+| Method             | Path                            | Access      | Purpose                                          | Implemented | Tested          | Frontend needed |
+| ------------------ | ------------------------------- | ----------- | ------------------------------------------------ | ----------- | --------------- | --------------- |
+| GET                | `/api/v1/admin/dashboard`       | Super Admin | Real KPI, recent orders, low stock, paid revenue | Yes         | Real-Mongo HTTP | Later           |
+| GET                | `/api/v1/admin/dashboard/sales` | Super Admin | Bounded realized-revenue aggregate               | Yes         | Real-Mongo HTTP | Later           |
+| GET                | `/api/v1/admin/audit-logs`      | Super Admin | Safe paginated audit listing                     | Yes         | Real-Mongo HTTP | Later           |
+| GET                | `/api/v1/admin/system/health`   | Super Admin | Safe operational health                          | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST/PATCH/DEL | `/api/v1/admin/products`        | Super Admin | Product management; DELETE archives              | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST/PATCH/DEL | `/api/v1/admin/categories`      | Super Admin | Category management; DELETE archives             | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST/PATCH/DEL | `/api/v1/admin/brands`          | Super Admin | Brand management; DELETE archives                | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST/PATCH/DEL | `/api/v1/admin/product-types`   | Super Admin | Nullable/backfillable product-type management    | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST/PATCH/DEL | `/api/v1/admin/attributes`      | Super Admin | Generic attributes with controlled values        | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST/PATCH/DEL | `/api/v1/admin/badges`          | Super Admin | Reusable product badge management                | Yes         | Real-Mongo HTTP | Later           |
 
 Product bases, sellable variants, independent variant inventory, provider-backed media uploads, and expanded OpenAPI are deferred. No legacy `/api/*` route was modified.
 
@@ -309,3 +308,193 @@ Supplier logins and portals, supplier API/EDI transmission, supplier stock webho
 tracking lookups, supplier invoicing, payouts, commission and margin settlement, multi-currency
 supplier costs, and all dropshipping frontend surfaces are deferred. No legacy `/api/*` route and
 no frontend application code was modified.
+
+## Marketing and merchandising
+
+Design notes: [MARKETING_ARCHITECTURE.md](./MARKETING_ARCHITECTURE.md).
+
+| Method   | Path                                    | Access      | Purpose                                            | Implemented | Tested          | Frontend needed |
+| -------- | --------------------------------------- | ----------- | -------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET      | `/api/v1/admin/coupons`                 | Super Admin | Paged coupon list with derived lifecycle state     | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/coupons`                 | Super Admin | Create a coupon on the existing coupon authority   | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/coupons/:id`             | Super Admin | One coupon with its derived state                  | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/coupons/:id/usage`       | Super Admin | Redemption statistics from order snapshots         | Yes         | Real-Mongo HTTP | Later           |
+| PATCH    | `/api/v1/admin/coupons/:id`             | Super Admin | Edit a coupon; never rewrites order snapshots      | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/coupons/:id/activate`    | Super Admin | Enable; idempotent, no duplicate audit             | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/coupons/:id/disable`     | Super Admin | Disable; idempotent, no duplicate audit            | Yes         | Real-Mongo HTTP | Later           |
+| DELETE   | `/api/v1/admin/coupons/:id`             | Super Admin | Soft archive; record and redemptions retained      | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST | `/api/v1/admin/promotions`              | Super Admin | Merchandising promotion list and create            | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/promotions/:id`          | Super Admin | One promotion                                      | Yes         | Real-Mongo HTTP | Later           |
+| PATCH    | `/api/v1/admin/promotions/:id`          | Super Admin | Edit a promotion; no discount authority            | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/promotions/:id/activate` | Super Admin | Move to `ACTIVE`; idempotent                       | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/promotions/:id/archive`  | Super Admin | Move to `ARCHIVED`; idempotent                     | Yes         | Real-Mongo HTTP | Later           |
+| DELETE   | `/api/v1/admin/promotions/:id`          | Super Admin | Soft archive                                       | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST | `/api/v1/admin/banners`                 | Super Admin | Banner list and create with structured links       | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/banners/:id`             | Super Admin | One banner                                         | Yes         | Real-Mongo HTTP | Later           |
+| PATCH    | `/api/v1/admin/banners/:id`             | Super Admin | Edit a banner; scheme-validated destinations       | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/banners/:id/activate`    | Super Admin | Move to `ACTIVE`; idempotent                       | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/banners/:id/archive`     | Super Admin | Move to `ARCHIVED`; idempotent                     | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/banners/reorder`         | Super Admin | Rewrite priorities from an ordered id list         | Yes         | Real-Mongo HTTP | Later           |
+| DELETE   | `/api/v1/admin/banners/:id`             | Super Admin | Soft archive                                       | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/homepage`                | Super Admin | Curated homepage layout with resolved references   | Yes         | Real-Mongo HTTP | Later           |
+| PUT      | `/api/v1/admin/homepage`                | Super Admin | Replace the whole ordered layout                   | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/homepage/reorder`        | Super Admin | Rewrite section positions from an ordered key list | Yes         | Real-Mongo HTTP | Later           |
+| PATCH    | `/api/v1/admin/homepage/sections/:key`  | Super Admin | Enable or disable one section                      | Yes         | Real-Mongo HTTP | Later           |
+
+The existing `Coupon` model remains the **only** discount authority; these routes manage it and
+never compute a discount, and `orderService` is unchanged. Editing a coupon cannot rewrite an
+order's frozen `couponId`, `code`, `type`, `value` or `actualDiscount`, which a regression test
+asserts. Lifecycle state is derived from `enabled`, the date window and `usageCount` rather than
+stored, so it can never disagree with the coupon. `Promotion` carries no percentage, amount or
+stacking field and is merchandising only; visibility is derived at read time from status and a
+half-open window, so there is no scheduler. Banner and menu destinations are structured — `NONE`,
+`INTERNAL_PATH`, `PRODUCT`, `CATEGORY`, `PROMOTION`, `EXTERNAL_URL` — with `http:`/`https:` only,
+so `javascript:`, `data:` and `file:` are rejected, and **no URL is ever fetched server-side**. The
+homepage is a closed section vocabulary with per-section caps, not a page builder, and eligibility
+is applied in the query so a `DRAFT` supplier-import product cannot reach it. Email, SMS and push
+campaigns, marketing automation, affiliate, loyalty and referral programmes, ad-platform
+integrations, AI marketing generation, A/B testing, and all marketing frontend surfaces are
+deferred. No legacy `/api/*` route and no frontend application code was modified.
+
+## Content: CMS pages, FAQs and navigation
+
+Design notes: [CMS_ARCHITECTURE.md](./CMS_ARCHITECTURE.md).
+
+| Method   | Path                              | Access      | Purpose                                        | Implemented | Tested          | Frontend needed |
+| -------- | --------------------------------- | ----------- | ---------------------------------------------- | ----------- | --------------- | --------------- |
+| GET/POST | `/api/v1/admin/pages`             | Super Admin | Page list and create with typed content blocks | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/pages/:id`         | Super Admin | One page with its blocks                       | Yes         | Real-Mongo HTTP | Later           |
+| PATCH    | `/api/v1/admin/pages/:id`         | Super Admin | Edit a page                                    | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/pages/:id/publish` | Super Admin | Publish, stamping `publishedAt` once           | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/pages/:id/archive` | Super Admin | Archive, preserving `publishedAt`              | Yes         | Real-Mongo HTTP | Later           |
+| DELETE   | `/api/v1/admin/pages/:id`         | Super Admin | Soft archive; slugs are never freed            | Yes         | Real-Mongo HTTP | Later           |
+| GET/POST | `/api/v1/admin/faqs`              | Super Admin | FAQ list and create                            | Yes         | Real-Mongo HTTP | Later           |
+| POST     | `/api/v1/admin/faqs/reorder`      | Super Admin | Rewrite positions in one `bulkWrite`           | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/faqs/:id`          | Super Admin | One FAQ                                        | Yes         | Real-Mongo HTTP | Later           |
+| PATCH    | `/api/v1/admin/faqs/:id`          | Super Admin | Edit an FAQ                                    | Yes         | Real-Mongo HTTP | Later           |
+| DELETE   | `/api/v1/admin/faqs/:id`          | Super Admin | Soft archive                                   | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/navigation`        | Super Admin | Both menus, ordered                            | Yes         | Real-Mongo HTTP | Later           |
+| GET      | `/api/v1/admin/navigation/:menu`  | Super Admin | One menu (`HEADER` or `FOOTER`)                | Yes         | Real-Mongo HTTP | Later           |
+| PUT      | `/api/v1/admin/navigation/:menu`  | Super Admin | Replace one menu whole                         | Yes         | Real-Mongo HTTP | Later           |
+
+Page bodies are a bounded array of typed blocks — `HEADING`, `PARAGRAPH`, `LIST`, `QUOTE`, `IMAGE`,
+`DIVIDER` — over a `.strict()` discriminated union capped at 120 blocks, so **no HTML, script,
+style or template field exists to store or render**, and every text value is stripped of markup by
+a transform that runs during validation rather than at render time. Slugs are unique and
+lowercase; a collision is `409 PAGE_SLUG_EXISTS` from the unique index, and `publishedAt` is
+stamped once and never rewritten. CMS pages hold **current** policy — the five policy documents are
+ordinary pages and carry no legal versioning, because what a customer agreed to lives in that
+order's own snapshot. Navigation is one singleton per menu with children bounded structurally at
+one level, capped at 30 items and 20 children. References are checked for existence at write time
+(`400 REFERENCE_NOT_FOUND`) and for eligibility at read time, so **draft or archived products and
+unpublished pages are never serialized into a public menu** — the entry is simply absent. A draft,
+archived, unknown or malformed slug all return the identical `404 PAGE_NOT_FOUND`, so unpublished
+pages cannot be enumerated. A WYSIWYG or drag-and-drop editor, arbitrary HTML or template code,
+scheduled publication workers, content versioning and revisions, draft previews, multi-language
+content, a media library and uploads, blog or comment domains, per-page access control, nested
+navigation beyond one level, and all content frontend surfaces are deferred. No legacy `/api/*`
+route and no frontend application code was modified.
+
+## Store configuration
+
+Design notes: [STORE_CONFIGURATION_ARCHITECTURE.md](./STORE_CONFIGURATION_ARCHITECTURE.md).
+
+| Method | Path                                 | Access      | Purpose                                            | Implemented | Tested          | Frontend needed |
+| ------ | ------------------------------------ | ----------- | -------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/admin/settings`             | Super Admin | The whole singleton configuration                  | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/store`       | Super Admin | Store identity, currency, timezone, thresholds     | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/contact`     | Super Admin | Support email, phone, address, country             | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/social`      | Super Admin | Replace the social-link list; six known channels   | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/seo`         | Super Admin | Meta text, canonical URL, enum `robots`, OpenGraph | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/shipping`    | Super Admin | Fees, free-shipping threshold, city overrides, COD | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/tax`         | Super Admin | Tax foundation; disabled by default                | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/invoice`     | Super Admin | Invoice presentation only                          | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/email`       | Super Admin | Notification behaviour; never credentials          | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/settings/maintenance` | Super Admin | Maintenance mode and its safe public message       | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/store/config`               | Public      | Customer-safe configuration; served in maintenance | Yes         | Real-Mongo HTTP | Later           |
+
+`StoreConfiguration` is one singleton pinned by a unique `key` index; `ensureStoreConfiguration()`
+awaits `init()`, upserts with `$setOnInsert` and re-reads on `11000`, so **concurrent
+initialisation cannot create a second document** — a test races parallel initialisers and asserts
+one. Settings are typed sections with their own `.strict()` schemas and numeric bounds, never a
+generic `key/value: any` store, and each PATCH diffs before writing so a no-op writes and audits
+nothing. Currency defaults to **PKR** and relabels only — there is no conversion — and timezone
+defaults to **Asia/Karachi** as a display clock, with every timestamp still stored in UTC so **no
+historical timestamp is ever rewritten**. Shipping configuration is what checkout charges:
+`quoteShipping` resolves disabled → free-shipping threshold (`>=`) → city override → standard fee,
+the defaults reproduce the previous PKR 250 / free-at-5,000 behaviour exactly, **no client-supplied
+shipping or tax value is read anywhere**, and an order's snapshot is never restated by a later
+configuration change. Tax ships disabled so totals stay zero-tax until an operator enables it.
+`codEnabled` defaults true and COD continues to work unchanged; setting it false makes checkout
+answer `PAYMENT_METHOD_UNAVAILABLE`. Email settings are `.strict()`, so a body containing
+`smtpPassword` or `apiKey` is `400 VALIDATION_ERROR` — **SMTP passwords and provider secrets stay
+in environment/deployment secrets and are never stored in MongoDB**. Maintenance mode returns
+`503 STORE_MAINTENANCE` on the seven public content routes while `/store/config`, both health
+endpoints and every Super Admin route keep working. Configuration is read per request, so a change
+needs no restart. Multi-currency and conversion, a tax-jurisdiction engine, per-product tax
+classes, a second invoice engine, credential storage, and all settings frontend surfaces are
+deferred. No legacy `/api/*` route and no frontend application code was modified.
+
+## Public storefront content
+
+Design notes: [CMS_ARCHITECTURE.md](./CMS_ARCHITECTURE.md), [MARKETING_ARCHITECTURE.md](./MARKETING_ARCHITECTURE.md).
+
+| Method | Path                        | Access | Purpose                                          | Implemented | Tested          | Frontend needed |
+| ------ | --------------------------- | ------ | ------------------------------------------------ | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/store/home`        | Public | One bounded homepage aggregation                 | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/store/navigation`  | Public | `header` and `footer` with destinations resolved | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/store/faqs`        | Public | Active FAQs, position-ordered, optional category | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/store/pages`       | Public | Published page references, title-ordered         | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/store/pages/:slug` | Public | One published page with blocks and SEO           | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/store/promotions`  | Public | Currently visible promotions                     | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/store/banners`     | Public | Currently visible banners by placement           | Yes         | Real-Mongo HTTP | Later           |
+
+Every public payload comes from an explicit allowlist serializer, never a delete list, so a field
+added to a model later stays internal until somebody publishes it deliberately. Tests assert that
+these endpoints expose no `supplierCost`, `unitCost`, supplier identity, `fulfillmentType`,
+`PricingRule` or `CatalogImport` data, no admin emails, no `createdBy`/`updatedBy`, no audit
+metadata, no internal ids beyond what a storefront needs, and no JWT or environment configuration.
+`/store/home` is a single bounded aggregation with per-section caps; ordering is server-authoritative,
+disabled sections are omitted, and future-dated or expired banners and promotions are excluded by
+the window in the query rather than filtered afterwards. All seven routes sit behind the
+maintenance guard; `/store/config` deliberately does not, so a maintenance page can render. These
+reads perform no writes and require no token, and Phase G publication rules remain intact — only
+`status: 'ACTIVE'` products are ever loaded.
+
+## System operations and audit administration
+
+Design notes: [SYSTEM_OPERATIONS_ARCHITECTURE.md](./SYSTEM_OPERATIONS_ARCHITECTURE.md).
+
+| Method | Path                               | Access      | Purpose                                          | Implemented | Tested                 | Frontend needed |
+| ------ | ---------------------------------- | ----------- | ------------------------------------------------ | ----------- | ---------------------- | --------------- |
+| GET    | `/health`                          | Public      | Liveness — `{ "status": "ok" }` and nothing more | Yes         | Real-Mongo HTTP        | Later           |
+| GET    | `/api/v1/admin/audit-logs/actions` | Super Admin | Distinct action and resource-type vocabulary     | Yes         | Real-Mongo HTTP        | Later           |
+| GET    | `/api/v1/admin/audit-logs/:id`     | Super Admin | One redacted audit entry                         | Yes         | Real-Mongo HTTP        | Later           |
+| GET    | `/api/v1/admin/dashboard/orders`   | Super Admin | Order counts by status over a bounded range      | Yes         | Pending v1 integration | Later           |
+| GET    | `/api/v1/admin/dashboard/products` | Super Admin | Product counts by status over a bounded range    | Yes         | Pending v1 integration | Later           |
+
+`/api/v1/health`, `/api/v1/admin/audit-logs`, `/api/v1/admin/dashboard`, `/api/v1/admin/dashboard/sales`
+and `/api/v1/admin/system/health` are listed in the tables above and are unchanged in shape; the
+rows here complete the router's surface. The public health endpoints stay minimal by design, and
+both they and every Super Admin route are exempt from maintenance mode. Admin health reports
+status, database connectivity, uptime, an environment label narrowed to a three-value set, and a
+version string from `APP_VERSION` falling back to `unknown`; it **never** publishes environment
+variables, the Mongo URI, the JWT secret, a filesystem path or a stack trace, a disconnected
+database is reported as `degraded` with a 200 rather than an error, and calling it initialises the
+store-configuration singleton as a documented side effect.
+
+**Phase H added no second audit model.** `/audit-logs` exposes three GETs and no write verb
+anywhere, so records are append-only structurally rather than by policy — there is no route that
+edits or deletes one. Filters are `page`, `limit`, `action`, `resourceType`, `resourceId`, `actor`,
+`search`, `sort`, `from` and `to` under a `.strict()` schema: `actor` must be 24-hex, `sort` is an
+enum mapped to a fixed `createdAt` direction, `search` is an escaped anchored prefix regex over
+`action` only, and the date span is validated as a range capped at 366 days. Pagination is
+mandatory and capped at 100. `redactAuditMetadata` runs on every returned entry, matching key names
+case-insensitively as substrings and bounding strings at 512 characters, objects at 40 keys, arrays
+at 20 items and recursion at depth 4, so **password hashes, JWTs, environment secrets, raw CSV
+bodies, supplier credentials and sensitive headers cannot be published**; `actor` is projected as
+`'name email role'`, so the password hash is never loaded at all. A malformed id returns the same
+clean `404 AUDIT_LOG_NOT_FOUND` as an unknown one, never a CastError. Log shipping to an external
+aggregator, metrics and tracing endpoints, alerting and incident tooling, audit retention, archival
+or export, per-dependency outbound health checks, feature flags, and all operations frontend
+surfaces are deferred. No legacy `/api/*` route and no frontend application code was modified.

@@ -21,6 +21,7 @@ import {
   type DropshipLine,
 } from './dropshipService.js';
 import { adjustStock, InventoryError } from './inventoryService.js';
+import { computeTax, getStoreConfiguration, isCashOnDeliveryAllowed, quoteShipping } from './storeConfigService.js';
 import { sendOrderConfirmation } from './transactionalEmail.js';
 
 export class OrderError extends Error {
@@ -32,7 +33,6 @@ export class OrderError extends Error {
   }
 }
 const money = (n: number) => Number(n.toFixed(2));
-const shippingFor = (discountedSubtotal: number) => (discountedSubtotal >= 5000 ? 0 : 250);
 const orderNumber = () => `MK-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 const transitions: Record<string, string[]> = {
   PENDING: ['CONFIRMED', 'CANCELLED'],
@@ -84,9 +84,17 @@ export async function checkout(
 ) {
   const existing = await Order.findOne({ customer, idempotencyKey: input.idempotencyKey }).lean();
   if (existing) return existing;
-  const [cart, address] = await Promise.all([Cart.findOne({ user: customer }).lean(), Address.findOne({ _id: input.addressId, user: customer }).lean()]);
+  const [cart, address, storeConfig] = await Promise.all([
+    Cart.findOne({ user: customer }).lean(),
+    Address.findOne({ _id: input.addressId, user: customer }).lean(),
+    getStoreConfiguration(),
+  ]);
   if (!address) throw new OrderError('ADDRESS_NOT_FOUND', 'Address not found.');
   if (!cart?.items?.length) throw new OrderError('CART_EMPTY', 'Cart is empty.');
+  // Cash on delivery is the only payment method MansooriKart offers, so an operator who
+  // switches it off is deliberately closing checkout. Enabled by default, which is the
+  // behaviour every existing order was placed under.
+  if (!isCashOnDeliveryAllowed(storeConfig)) throw new OrderError('PAYMENT_METHOD_UNAVAILABLE', 'Cash on delivery is currently unavailable.');
   const ids = cart.items.map((i: any) => i.product);
   const products = await Product.find({ _id: { $in: ids }, status: 'ACTIVE' }).lean();
   const byId = new Map<string, any>(products.map((p: any) => [String(p._id), p]));
@@ -147,9 +155,15 @@ export async function checkout(
   });
   const subtotal = money(items.reduce((sum: number, item: any) => sum + item.lineSubtotal, 0));
   const couponInfo = await couponFor(customer, input.couponCode, subtotal);
-  const shipping = shippingFor(subtotal - couponInfo.discount),
-    tax = 0,
-    total = money(Math.max(0, subtotal - couponInfo.discount + shipping + tax));
+  // Shipping and tax come from the one store-configuration authority, evaluated against
+  // server-derived values only: the discounted subtotal the server just computed and the
+  // city on the address the server loaded. Nothing the client sent can move either number,
+  // and an unconfigured store yields the historical PKR 250 fee waived at PKR 5,000 with
+  // zero tax. Both are then frozen onto the order as snapshots (§28, §30, §32).
+  const discountedSubtotal = money(Math.max(0, subtotal - couponInfo.discount));
+  const shipping = quoteShipping(storeConfig, discountedSubtotal, (address as any).city),
+    tax = computeTax(storeConfig, discountedSubtotal),
+    total = money(Math.max(0, discountedSubtotal + shipping + tax));
   const deducted: any[] = [];
   let created: any;
   try {

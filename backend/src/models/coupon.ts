@@ -16,4 +16,11 @@ const couponSchema = new Schema(
   },
   { timestamps: true, collection: 'coupons' }
 );
+/**
+ * The admin list is filtered by lifecycle state and sorted newest-first, so one
+ * compound covering `enabled` + `expiresAt` serves the status filters and a plain
+ * `createdAt` index serves the default sort. `code` already has its own unique index.
+ */
+couponSchema.index({ enabled: 1, expiresAt: 1 });
+couponSchema.index({ createdAt: -1 });
 export const Coupon: any = (models.Coupon as Model<any>) || model('Coupon', couponSchema);

@@ -295,6 +295,10 @@ router.get('/products/:id', validate(idParams, 'params'), async (request, respon
 router.post('/products', validate(productBody), async (request, response, next) => {
   try {
     const data = request.body as z.infer<typeof productBody>;
+    // The 409 below is produced by the `sku`/`slug` unique indexes, which Mongoose builds in
+    // the background after connecting. Awaiting the (cached) build promise means a duplicate
+    // is rejected even on the first write against a freshly created database.
+    await Product.init();
     await ensureReferences(data);
     // Creating straight into ACTIVE is publishing, so it passes the same gate as the
     // publish route. Without this the create endpoint would be a second door onto the
