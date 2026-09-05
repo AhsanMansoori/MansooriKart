@@ -69,6 +69,55 @@ export const product = (value: Record<string, unknown> & { _id?: { toString(): s
   ratingAverage: value.ratingAverage ?? value.rating ?? 0,
   ratingCount: value.ratingCount ?? value.numReviews ?? 0,
 });
+/**
+ * Customer-facing order projection.
+ *
+ * An order line carries snapshots that exist for finance and fulfillment — `unitCost`,
+ * `lineCost`, `supplier`, `supplierSku`, `supplierCost` — and none of them belong in a
+ * customer payload (§30, §56). This is an allowlist rather than a delete list, so a field
+ * added to the order schema later cannot leak by default. `fulfillmentType` is also
+ * withheld: which shelf the goods ship from is internal routing, not customer-facing
+ * terminology (§33).
+ *
+ * `_id` is preserved alongside the rest because the customer order contract already
+ * exposes it and clients key off it.
+ */
+export const customerOrderItem = (value: Record<string, unknown>) => ({
+  productId: value.productId,
+  name: value.name,
+  sku: value.sku,
+  image: value.image,
+  unitPrice: value.unitPrice,
+  quantity: value.quantity,
+  lineSubtotal: value.lineSubtotal,
+});
+export const customerOrder = (value: Record<string, any>) => ({
+  _id: value._id,
+  orderNumber: value.orderNumber,
+  invoiceNumber: value.invoiceNumber,
+  items: (value.items ?? []).map((item: Record<string, unknown>) => customerOrderItem(item)),
+  shippingAddress: value.shippingAddress ?? null,
+  subtotal: value.subtotal,
+  discount: value.discount,
+  shipping: value.shipping,
+  tax: value.tax,
+  total: value.total,
+  currency: value.currency ?? 'PKR',
+  coupon: value.coupon ? { code: value.coupon.code, type: value.coupon.type, value: value.coupon.value, actualDiscount: value.coupon.actualDiscount } : null,
+  paymentMethod: value.paymentMethod,
+  paymentStatus: value.paymentStatus,
+  orderStatus: value.orderStatus,
+  // Only the customer-meaningful part of the trail: no actor id, no request id.
+  statusHistory: (value.statusHistory ?? []).map((entry: Record<string, unknown>) => ({
+    status: entry.status,
+    from: entry.from ?? null,
+    to: entry.to,
+    reason: entry.reason ?? null,
+    at: entry.at ?? null,
+  })),
+  createdAt: value.createdAt,
+  updatedAt: value.updatedAt,
+});
 export const adminProduct = (value: Record<string, unknown> & { _id?: { toString(): string } }) => ({
   ...product(value),
   costPrice: value.costPrice,
@@ -79,6 +128,13 @@ export const adminProduct = (value: Record<string, unknown> & { _id?: { toString
   productType: value.productType ? String(value.productType) : null,
   badges: (value.badges as unknown[] | undefined)?.map(String) || [],
   seo: value.seo,
+  // Dropshipping additions. All admin-only: `product()` above deliberately omits
+  // every one of them, so no supplier or sourcing detail reaches the storefront.
+  fulfillmentType: value.fulfillmentType ?? 'OWN_STOCK',
+  sourceType: value.sourceType ?? 'MANUAL',
+  sellingPriceOverridden: Boolean(value.sellingPriceOverridden),
+  supplierSuggestedRetailPrice: value.supplierSuggestedRetailPrice ?? null,
+  publishedAt: value.publishedAt ?? null,
   createdAt: value.createdAt,
   updatedAt: value.updatedAt,
 });

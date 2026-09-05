@@ -10,6 +10,14 @@ import { Category } from '../../models/category.js';
 import { ProductBadge } from '../../models/productBadge.js';
 import { Product } from '../../models/product.js';
 import { ProductType } from '../../models/productType.js';
+import {
+  archiveProducts,
+  evaluatePublication,
+  publicationIssuesFor,
+  publishProducts,
+  PublicationError,
+  type PublicationIssue,
+} from '../../services/publicationService.js';
 import * as serialize from '../../serializers/index.js';
 import { sendFailure, sendSuccess } from '../../utils/api-response.js';
 
@@ -61,6 +69,9 @@ const productFields = {
   stock: z.number().int().min(0).max(10_000_000).default(0),
   lowStockThreshold: z.number().int().min(0).max(10_000_000).default(5),
   status: status.default('DRAFT'),
+  // Which shelf the goods ship from. Everything else about a dropship product — its
+  // supplier, cost and stock — arrives through the CSV import and is never client input.
+  fulfillmentType: z.enum(['OWN_STOCK', 'DROPSHIP']).default('OWN_STOCK'),
   featured: z.boolean().default(false),
   tags: z.array(z.string().trim().min(1).max(60)).max(30).default([]),
   productType: z.string().regex(objectId).nullable().optional(),
@@ -112,6 +123,7 @@ const productPatch = z
     stock: z.number().int().min(0).max(10_000_000).optional(),
     lowStockThreshold: z.number().int().min(0).max(10_000_000).optional(),
     status: status.optional(),
+    fulfillmentType: z.enum(['OWN_STOCK', 'DROPSHIP']).optional(),
     featured: z.boolean().optional(),
     tags: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
     productType: z.string().regex(objectId).nullable().optional(),
@@ -217,6 +229,17 @@ const ensureReferences = async (data: Record<string, any>) => {
   if (data.badges?.length && (await ProductBadge.countDocuments({ _id: { $in: data.badges }, status: 'ACTIVE' })) !== data.badges.length)
     throw new ApiError(400, 'BADGE_INVALID', 'One or more badges are not available.');
 };
+/**
+ * A bulk publication target list. The outer bound is generous on purpose so the domain
+ * limit in `publicationService` reports its own `PRODUCT_IDS_TOO_MANY` rather than being
+ * masked by a validation error.
+ */
+const publishBody = z.object({ productIds: z.array(z.string().regex(objectId)).min(1).max(500) }).strict();
+const noBody = z.object({}).strict();
+const publicationFailure = (error: unknown, request: express.Request, response: express.Response, next: express.NextFunction) =>
+  error instanceof PublicationError ? sendFailure(response, error.status, error.code, error.message, request.requestId) : next(error);
+/** Issue codes travel in the message because the error envelope carries no detail field. */
+const notPublishable = (issues: PublicationIssue[]) => `The product cannot be published: ${issues.map(item => item.code).join(', ')}.`;
 
 router.use(requireAuth, requireSuperAdmin);
 
@@ -273,7 +296,19 @@ router.post('/products', validate(productBody), async (request, response, next) 
   try {
     const data = request.body as z.infer<typeof productBody>;
     await ensureReferences(data);
-    const item = await Product.create(data);
+    // Creating straight into ACTIVE is publishing, so it passes the same gate as the
+    // publish route. Without this the create endpoint would be a second door onto the
+    // storefront that skips every launch-critical check (§22).
+    const publishing = data.status === 'ACTIVE';
+    if (publishing) {
+      const issues = await publicationIssuesFor(data);
+      if (issues.length) return sendFailure(response, 400, 'PRODUCT_NOT_PUBLISHABLE', notPublishable(issues), request.requestId);
+    }
+    const item = await Product.create({
+      ...data,
+      createdBy: request.auth!.userId,
+      ...(publishing ? { publishedAt: new Date(), publishedBy: request.auth!.userId } : {}),
+    });
     await audit(request, 'PRODUCT_CREATED', 'Product', String(item._id), { sku: item.sku, slug: item.slug, status: item.status });
     return sendSuccess(response, serialize.adminProduct(item.toObject()), 201);
   } catch (error) {
@@ -290,7 +325,22 @@ router.patch('/products/:id', validate(idParams, 'params'), validate(productPatc
     if (effectiveCompareAtPrice !== undefined && effectiveCompareAtPrice < effectivePrice)
       return sendFailure(response, 400, 'VALIDATION_ERROR', 'Compare-at price cannot be less than price.', request.requestId);
     await ensureReferences(data);
-    const item = await Product.findByIdAndUpdate(request.params.id, { $set: data }, { new: true, runValidators: true }).lean();
+    // Same gate as create, judged on the product as it would be after the patch. Patching
+    // an already-ACTIVE product is left alone: that is an edit, not a publication.
+    const publishing = data.status === 'ACTIVE' && current.status !== 'ACTIVE';
+    if (publishing) {
+      const issues = await publicationIssuesFor({ ...current, ...data });
+      if (issues.length) return sendFailure(response, 400, 'PRODUCT_NOT_PUBLISHABLE', notPublishable(issues), request.requestId);
+    }
+    const update: Record<string, unknown> = { ...data };
+    // §19: a price an admin typed by hand is a decision, so it is marked as such and a
+    // later automatic pricing pass preserves it unless explicitly told otherwise.
+    if (data.price !== undefined) update.sellingPriceOverridden = true;
+    if (publishing) {
+      update.publishedAt = new Date();
+      update.publishedBy = request.auth!.userId;
+    }
+    const item = await Product.findByIdAndUpdate(request.params.id, { $set: update }, { new: true, runValidators: true }).lean();
     if (!item) return sendFailure(response, 404, 'PRODUCT_NOT_FOUND', 'Product not found.', request.requestId);
     await audit(request, 'PRODUCT_UPDATED', 'Product', String(item._id), { fields: Object.keys(data).sort() });
     return sendSuccess(response, serialize.adminProduct(item));
@@ -306,6 +356,65 @@ router.delete('/products/:id', validate(idParams, 'params'), async (request, res
     return sendSuccess(response, serialize.adminProduct(item));
   } catch (error) {
     return next(error);
+  }
+});
+
+/**
+ * Publication (§22, §23).
+ *
+ * Three shapes: a dry run that reports every reason each product may not go live, a bulk
+ * publish that publishes what passes and reports the rest untouched, and a single publish
+ * that refuses rather than silently no-op. Archiving needs no field checks — pulling an
+ * incomplete product is exactly what an operator wants — so it only reports what existed.
+ */
+router.post('/products/publish-preview', validate(publishBody), async (request, response, next) => {
+  try {
+    const candidates = await evaluatePublication(request.body.productIds);
+    return sendSuccess(response, {
+      candidates,
+      summary: { requested: candidates.length, publishable: candidates.filter(item => item.publishable).length },
+    });
+  } catch (error) {
+    return publicationFailure(error, request, response, next);
+  }
+});
+router.post('/products/publish', validate(publishBody), async (request, response, next) => {
+  try {
+    const result = await publishProducts(request.auth!.userId, request.body.productIds, request.requestId);
+    return sendSuccess(response, {
+      ...result,
+      summary: { requested: request.body.productIds.length, publishedCount: result.published.length, rejectedCount: result.rejected.length },
+    });
+  } catch (error) {
+    return publicationFailure(error, request, response, next);
+  }
+});
+router.post('/products/archive', validate(publishBody), async (request, response, next) => {
+  try {
+    const result = await archiveProducts(request.auth!.userId, request.body.productIds, request.requestId);
+    return sendSuccess(response, {
+      ...result,
+      summary: { requested: request.body.productIds.length, archivedCount: result.archived.length, missingCount: result.missing.length },
+    });
+  } catch (error) {
+    return publicationFailure(error, request, response, next);
+  }
+});
+router.post('/products/:id/publish', validate(idParams, 'params'), validate(noBody), async (request, response, next) => {
+  try {
+    const { published, rejected } = await publishProducts(request.auth!.userId, [String(request.params.id)], request.requestId);
+    if (!published.length) {
+      const issues = rejected[0]?.issues ?? [];
+      return issues.some(item => item.code === 'PRODUCT_NOT_FOUND')
+        ? sendFailure(response, 404, 'PRODUCT_NOT_FOUND', 'Product not found.', request.requestId)
+        : sendFailure(response, 400, 'PRODUCT_NOT_PUBLISHABLE', notPublishable(issues), request.requestId);
+    }
+    const item = await Product.findById(request.params.id).lean();
+    return item
+      ? sendSuccess(response, serialize.adminProduct(item))
+      : sendFailure(response, 404, 'PRODUCT_NOT_FOUND', 'Product not found.', request.requestId);
+  } catch (error) {
+    return publicationFailure(error, request, response, next);
   }
 });
 

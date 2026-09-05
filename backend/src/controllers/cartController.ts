@@ -2,9 +2,14 @@ import type { NextFunction, Request, Response } from 'express';
 import * as cart from '../services/cartService.js';
 import { sendFailure, sendSuccess } from '../utils/api-response.js';
 
+// Availability failures are 409 (the request was well formed, the goods are not there);
+// anything else a cart operation raises is a missing resource. Supplier-side
+// unavailability joins the existing warehouse case rather than inventing a new shape.
+const CONFLICT_CODES = ['INSUFFICIENT_STOCK', 'SUPPLIER_UNAVAILABLE', 'SUPPLIER_OUT_OF_STOCK'];
+
 const respond = (error: unknown, request: Request, response: Response, next: NextFunction) => {
   if (error instanceof cart.CartError)
-    return sendFailure(response, error.code === 'INSUFFICIENT_STOCK' ? 409 : 404, error.code, error.message, request.requestId);
+    return sendFailure(response, CONFLICT_CODES.includes(error.code) ? 409 : 404, error.code, error.message, request.requestId);
   return next(error);
 };
 

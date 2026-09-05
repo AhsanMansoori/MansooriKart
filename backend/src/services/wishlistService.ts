@@ -1,5 +1,6 @@
 import { Product } from '../models/product.js';
 import { Wishlist } from '../models/wishlist.js';
+import * as serialize from '../serializers/index.js';
 
 export class WishlistError extends Error {
   constructor(
@@ -10,9 +11,17 @@ export class WishlistError extends Error {
   }
 }
 const active = { $or: [{ status: 'ACTIVE' }, { status: { $exists: false } }] };
+/**
+ * A wishlist is a customer-facing surface, so its products go through the public
+ * serializer for the same reason the cart's do: a DROPSHIP product's `costPrice` is the
+ * supplier's cost, and sourcing fields are internal (§30, §56). `_id` is kept beside the
+ * serializer's `id` so the existing contract is unchanged.
+ */
 export async function getWishlist(userId: string) {
   const wishlist = await Wishlist.findOne({ user: userId }).populate('products').lean();
-  return { products: (wishlist?.products || []).filter(Boolean) };
+  return {
+    products: (wishlist?.products || []).filter(Boolean).map((item: any) => ({ _id: item._id, ...serialize.product(item) })),
+  };
 }
 export async function addWishlistItem(userId: string, productId: string) {
   const product = await Product.findOne({ _id: productId, ...active });

@@ -17,6 +17,19 @@ const item = new Schema(
     // that coverage explicitly instead of guessing a cost.
     unitCost: Number,
     lineCost: Number,
+    // How this line is fulfilled, frozen at order creation. OWN_STOCK lines were
+    // deducted from InventoryBalance; DROPSHIP lines were not, and are shipped by
+    // the supplier snapshotted below. Absent on orders predating dropshipping,
+    // which are read as OWN_STOCK.
+    fulfillmentType: { type: String, enum: ['OWN_STOCK', 'DROPSHIP'] },
+    // Sourcing snapshot for DROPSHIP lines. Frozen deliberately: reassigning a
+    // product to another supplier, renaming a supplier SKU or renegotiating cost
+    // must never rewrite what an already-placed order recorded.
+    supplier: { type: Schema.Types.ObjectId, ref: 'Supplier' },
+    supplierSku: String,
+    // Supplier cost at order time. Internal only — the customer-facing order
+    // serializer omits every cost field. Feeds the same COGS basis as unitCost.
+    supplierCost: Number,
   },
   { _id: false }
 );

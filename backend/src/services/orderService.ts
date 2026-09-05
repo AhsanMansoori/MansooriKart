@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { Types } from 'mongoose';
+import { BLOCKING_SUPPLIER_AVAILABILITY } from '../config/dropshipping.js';
 import { Address } from '../models/address.js';
 import { AuditLog } from '../models/auditLog.js';
 import { Cart } from '../models/cart.js';
@@ -10,6 +11,15 @@ import { Product } from '../models/product.js';
 import { Refund } from '../models/refund.js';
 import { ReturnRequest } from '../models/return.js';
 import { ReturnAllocation } from '../models/returnAllocation.js';
+import { SupplierCatalogItem } from '../models/supplierCatalogItem.js';
+import {
+  cancelFulfillmentsForOrder,
+  createFulfillments,
+  DropshipError,
+  preferredSupplierSource,
+  removeFulfillmentsForOrder,
+  type DropshipLine,
+} from './dropshipService.js';
 import { adjustStock, InventoryError } from './inventoryService.js';
 import { sendOrderConfirmation } from './transactionalEmail.js';
 
@@ -80,15 +90,48 @@ export async function checkout(
   const ids = cart.items.map((i: any) => i.product);
   const products = await Product.find({ _id: { $in: ids }, status: 'ACTIVE' }).lean();
   const byId = new Map<string, any>(products.map((p: any) => [String(p._id), p]));
+  // Dropship lines are backed by a supplier source, not by warehouse stock, so the
+  // governing source is resolved once for the whole cart and snapshotted per line.
+  const dropshipIds = products.filter((p: any) => p.fulfillmentType === 'DROPSHIP').map((p: any) => p._id);
+  const sources = dropshipIds.length
+    ? await SupplierCatalogItem.find({ product: { $in: dropshipIds }, isActive: true })
+        .select('product supplier supplierSku supplierCost supplierAvailability createdAt')
+        .lean()
+    : [];
+  const sourcesByProduct = new Map<string, any[]>();
+  for (const source of sources) {
+    const key = String((source as any).product);
+    const list = sourcesByProduct.get(key);
+    if (list) list.push(source);
+    else sourcesByProduct.set(key, [source]);
+  }
   const items = cart.items.map((entry: any) => {
     const product: any = byId.get(String(entry.product));
-    if (!product || entry.quantity < 1 || entry.quantity > product.stock) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
-    // Server-derived cost snapshot on the LATEST_PURCHASE_COST basis. Frozen at
-    // creation so a later `Product.costPrice` change cannot rewrite historical
-    // profit. A product with no recorded cost stores no snapshot at all rather
-    // than a zero, so finance reports cost coverage honestly instead of implying
-    // the goods were free.
-    const unitCost = typeof product.costPrice === 'number' && product.costPrice >= 0 ? money(product.costPrice) : undefined;
+    if (!product || entry.quantity < 1) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
+    const fulfillmentType = product.fulfillmentType === 'DROPSHIP' ? 'DROPSHIP' : 'OWN_STOCK';
+    const candidates = sourcesByProduct.get(String(product._id)) ?? [];
+    const source = fulfillmentType === 'DROPSHIP' && candidates.length ? preferredSupplierSource(candidates) : undefined;
+    // Own stock is still governed by the warehouse balance mirrored on the product;
+    // that check and its InventoryMovement trail are untouched by dropshipping (§39).
+    if (fulfillmentType === 'OWN_STOCK') {
+      if (entry.quantity > product.stock) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
+    } else {
+      // A dropship line needs somebody to ship it, and an explicit OUT_OF_STOCK feed
+      // blocks. UNKNOWN or stale-but-positive stock does not: a CSV feed that reports
+      // no quantity is not evidence of absence (§24, §29).
+      if (!source) throw new OrderError('DROPSHIP_UNAVAILABLE', 'A cart item has no active supplier source.');
+      if (BLOCKING_SUPPLIER_AVAILABILITY.includes(String(source.supplierAvailability ?? 'UNKNOWN')))
+        throw new OrderError('DROPSHIP_UNAVAILABLE', 'A cart item is out of stock at the supplier.');
+    }
+    // Server-derived cost snapshot on the LATEST_PURCHASE_COST basis: supplier cost for
+    // a dropship line, `Product.costPrice` for own stock. Frozen at creation so a later
+    // cost or supplier change cannot rewrite historical profit (§31). Both feed the one
+    // existing COGS mechanism — `lineCost` — rather than a second profit formula (§57).
+    // A line with no recorded cost stores no snapshot at all rather than a zero, so
+    // finance reports cost coverage honestly instead of implying the goods were free.
+    const supplierCost = source && typeof source.supplierCost === 'number' && source.supplierCost >= 0 ? money(source.supplierCost) : undefined;
+    const ownCost = typeof product.costPrice === 'number' && product.costPrice >= 0 ? money(product.costPrice) : undefined;
+    const unitCost = fulfillmentType === 'DROPSHIP' ? supplierCost : ownCost;
     return {
       productId: product._id,
       name: product.name,
@@ -97,6 +140,8 @@ export async function checkout(
       unitPrice: product.price,
       quantity: entry.quantity,
       lineSubtotal: money(product.price * entry.quantity),
+      fulfillmentType,
+      ...(source ? { supplier: source.supplier, supplierSku: source.supplierSku ?? undefined, ...(supplierCost === undefined ? {} : { supplierCost }) } : {}),
       ...(unitCost === undefined ? {} : { unitCost, lineCost: money(unitCost * entry.quantity) }),
     };
   });
@@ -109,6 +154,9 @@ export async function checkout(
   let created: any;
   try {
     for (const item of items) {
+      // §29: a dropship line never decrements MansooriKart warehouse stock, and never
+      // produces an InventoryMovement. The supplier ships from their own shelf.
+      if (item.fulfillmentType !== 'OWN_STOCK') continue;
       await adjustStock({
         productId: String(item.productId),
         quantityDelta: -item.quantity,
@@ -142,6 +190,14 @@ export async function checkout(
       await Coupon.updateOne({ _id: couponInfo.coupon._id }, { $inc: { usageCount: 1 } });
       await CouponRedemption.create({ coupon: couponInfo.coupon._id, customer, order: created._id });
     }
+    // One fulfillment per supplier, created inside the compensated block so a failure
+    // here rolls the whole order back rather than leaving a customer order whose
+    // dropship lines nobody was asked to ship (§34).
+    const dropshipLines: DropshipLine[] = [];
+    items.forEach((item: any, index: number) => {
+      if (item.fulfillmentType === 'DROPSHIP') dropshipLines.push({ index, supplier: String(item.supplier ?? '') });
+    });
+    if (dropshipLines.length) await createFulfillments(created, dropshipLines, customer, requestId);
     await AuditLog.create({
       actor: customer,
       action: 'ORDER_CREATED',
@@ -158,6 +214,8 @@ export async function checkout(
     if (created) {
       await Order.deleteOne({ _id: created._id });
       await CouponRedemption.deleteOne({ order: created._id });
+      // Supplier obligations must not outlive the order they belonged to.
+      await removeFulfillmentsForOrder(created._id).catch(() => undefined);
       if (couponInfo.coupon) await Coupon.updateOne({ _id: couponInfo.coupon._id, usageCount: { $gt: 0 } }, { $inc: { usageCount: -1 } });
     }
     for (const item of deducted.reverse())
@@ -175,6 +233,7 @@ export async function checkout(
     }
     if (error instanceof OrderError) throw error;
     if (error instanceof InventoryError) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
+    if (error instanceof DropshipError) throw new OrderError('DROPSHIP_UNAVAILABLE', 'A dropship item could not be routed to a supplier.');
     throw new OrderError('CHECKOUT_FAILED', 'Checkout could not be completed.');
   }
 }
@@ -214,7 +273,10 @@ export async function cancelOrder(customer: string, id: string, requestId?: stri
     const exists = await Order.findOne(scope).select('_id').lean();
     throw exists ? new OrderError('ORDER_NOT_CANCELLABLE', 'Order cannot be cancelled.') : new OrderError('ORDER_NOT_FOUND', 'Order not found.');
   }
-  for (const item of claimed.items)
+  for (const item of claimed.items) {
+    // Only owned stock was ever deducted, so only owned stock is restored. A dropship
+    // line has no warehouse balance to give back (§29, §39).
+    if ((item.fulfillmentType ?? 'OWN_STOCK') !== 'OWN_STOCK') continue;
     await adjustStock({
       productId: String(item.productId),
       quantityDelta: item.quantity,
@@ -225,13 +287,22 @@ export async function cancelOrder(customer: string, id: string, requestId?: stri
       referenceType: 'Order',
       referenceId: String(claimed._id),
     });
+  }
+  // Withdraw the supplier obligations too. This records MansooriKart's intent and the
+  // supplier-contact caveat; it does not claim the supplier cancelled anything (§37).
+  const cancelledFulfillments = await cancelFulfillmentsForOrder(
+    String(claimed._id),
+    actor,
+    byAdmin ? 'Order cancelled by admin' : 'Order cancelled by customer',
+    requestId
+  );
   await AuditLog.create({
     actor,
     action: byAdmin ? 'ORDER_ADMIN_CANCELLED' : 'ORDER_CANCELLED',
     resourceType: 'Order',
     resourceId: String(claimed._id),
     requestId,
-    metadata: {},
+    metadata: { cancelledFulfillments },
   });
   return claimed;
 }

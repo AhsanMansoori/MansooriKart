@@ -5,6 +5,7 @@ import { validate } from '../../middleware/validate.js';
 import { AuditLog } from '../../models/auditLog.js';
 import { Order } from '../../models/order.js';
 import { cancelOrder, OrderError, updateOrderStatus, updatePaymentStatus } from '../../services/orderService.js';
+import { fulfillmentsForOrder } from '../../services/dropshipService.js';
 import { buildInvoice } from '../../services/invoice.js';
 import { renderInvoicePdf } from '../../services/invoicePdf.js';
 import { sendFailure, sendSuccess } from '../../utils/api-response.js';
@@ -74,10 +75,19 @@ router.get('/orders', validate(listQuery, 'query'), async (r, s, n) => {
     return n(e);
   }
 });
+/**
+ * Order detail carries the supplier obligations attached to the order.
+ *
+ * A mixed order splits across suppliers (§32), so "who was asked to ship what" is only
+ * answerable from the fulfillments; showing them here saves a second call and keeps the
+ * own-stock lines visibly separate from the dropship ones. The full operational surface —
+ * filtering, status transitions, tracking — stays on `/dropship-fulfillments` (§43).
+ */
 router.get('/orders/:orderId', validate(params, 'params'), async (r, s, n) => {
   try {
     const order = await Order.findById(r.params.orderId).populate('customer', 'name email').lean();
-    return order ? sendSuccess(s, order) : sendFailure(s, 404, 'ORDER_NOT_FOUND', 'Order not found.', r.requestId);
+    if (!order) return sendFailure(s, 404, 'ORDER_NOT_FOUND', 'Order not found.', r.requestId);
+    return sendSuccess(s, { ...order, dropshipFulfillments: await fulfillmentsForOrder(String(r.params.orderId)) });
   } catch (e) {
     return n(e);
   }

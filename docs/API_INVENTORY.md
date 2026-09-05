@@ -14,7 +14,7 @@
 | GET          | `/api/v1/brands`, `/:slug`         | Public | Active brands             | Yes         | Pending v1 integration | Later           |
 | GET          | `/api/v1/products`, `/:identifier` | Public | Active catalog            | Yes         | Pending v1 integration | Later           |
 
-CSV and expanded OpenAPI remain outside the TypeScript v1 runtime.
+Supplier CSV **import** is implemented in the TypeScript v1 runtime — see "CSV catalog import" below. Data and report **export** (CSV download, XLSX, scheduled delivery) and expanded OpenAPI remain outside it.
 
 ## Super Admin core and catalog additions
 
@@ -216,7 +216,96 @@ vocabularies; search input is regex-escaped, so `.*` matches literally. Sales, p
 order, customer, finance, and tax figures read order and purchase-order snapshots and therefore
 do not move when the catalogue or a supplier is edited; inventory valuation
 (`LATEST_PURCHASE_COST`) and supplier display labels are the two deliberate current-value views.
-`InventoryBalance` is the only stock authority — no report reads `Product.stock`. CSV and XLSX
-export, scheduled report delivery, and the whole Import/Export ERP module are deferred, which
-the report index states machine-readably. No report writes data, and no reporting warehouse,
-materialised summary collection, or rollup job was created.
+`InventoryBalance` is the only stock authority — no report reads `Product.stock`. Report **export**
+— CSV download, XLSX generation, scheduled report delivery — remains deferred, which the report
+index states machine-readably; the supplier CSV **import** below is inbound catalog data and gives
+no report a download. No report writes data, and no reporting warehouse, materialised summary
+collection, or rollup job was created.
+
+## CSV catalog import
+
+Design notes: [CSV_CATALOG_IMPORT_ARCHITECTURE.md](./CSV_CATALOG_IMPORT_ARCHITECTURE.md).
+
+| Method | Path                                            | Access      | Purpose                                                   | Implemented | Tested          | Frontend needed |
+| ------ | ----------------------------------------------- | ----------- | --------------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/admin/catalog-imports/mapping-targets` | Super Admin | Mapping targets, required fields, overwritable set        | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/catalog-imports`                 | Super Admin | Raw CSV upload; parses and stores rows, writes no product | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/catalog-imports/:id/mapping`     | Super Admin | Confirm column mapping; optional pricing-rule opt-in      | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/catalog-imports/:id/preview`     | Super Admin | Exactly what the import would do; writes nothing          | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/catalog-imports/:id/import`      | Super Admin | Atomically claimed run; creates `DRAFT` products only     | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/catalog-imports/:id/cancel`      | Super Admin | Cancel a job that has not run                             | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/catalog-imports`                 | Super Admin | Job list by supplier, status, and date                    | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/catalog-imports/:id`             | Super Admin | Job detail with counters and honest completion status     | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/catalog-imports/:id/rows`        | Super Admin | Paginated per-row outcome, changes, and issues            | Yes         | Real-Mongo HTTP | Later           |
+
+Every product an import creates is `DRAFT`, and no mapping target reaches `Product.status` or
+`Product.price` — **a supplier file can neither publish a product nor set its selling price**.
+Bounds are declared in `config/dropshipping.ts` (5 MiB, 5,000 rows, 60 columns, 20 preview rows,
+500-document batches); an unsupported content type is `415 CSV_CONTENT_TYPE_UNSUPPORTED` and an
+oversize body is `413 REQUEST_BODY_TOO_LARGE`. No upload or CSV dependency was added — the parser
+is `src/utils/csv.ts`. Image URLs are validated and never fetched. A supplier stock change writes
+no `InventoryMovement`, so the warehouse ledger still describes only owned goods. Supplier portals
+and logins, supplier API/EDI feeds, scheduled or automatic imports, XLSX and JSON import formats,
+image downloading or rehosting, and all import frontend surfaces are deferred. No legacy `/api/*`
+route and no frontend application code was modified.
+
+## Pricing
+
+Design notes: [PRICING_ARCHITECTURE.md](./PRICING_ARCHITECTURE.md).
+
+| Method | Path                                      | Access      | Purpose                                               | Implemented | Tested          | Frontend needed |
+| ------ | ----------------------------------------- | ----------- | ----------------------------------------------------- | ----------- | --------------- | --------------- |
+| POST   | `/api/v1/admin/pricing-rules`             | Super Admin | Create a markup/floor/rounding rule                   | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/pricing-rules`             | Super Admin | The rule book, in engine resolution order             | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/pricing-rules/:id`         | Super Admin | One rule                                              | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/pricing-rules/:id`         | Super Admin | Amend a rule; `null` clears a scope field             | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/pricing-rules/:id/disable` | Super Admin | Retire a rule; the engine stops seeing it             | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/pricing-rules/:id/enable`  | Super Admin | Reinstate a rule                                      | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/pricing/preview`           | Super Admin | Proposed prices and gross margin; writes nothing      | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/pricing/apply`             | Super Admin | Write the proposal in one `bulkWrite`; never `status` | Yes         | Real-Mongo HTTP | Later           |
+
+The engine computes a **suggestion**; writing `Product.price` is always an explicit caller act.
+Rule selection is deterministic (scope specificity, then `priority`, then age, then id), so the
+same product and cost always resolve to the same rule and two rules can never tie. Markup, then
+the `minimumProfit` floor, then `END_99` rounding — which is skipped when it would breach the
+floor — so **a computed price is never below cost**. A manually set price is preserved unless
+`includeOverridden: true` is sent, and it is reported as `PRICE_MANUALLY_OVERRIDDEN` rather than
+quietly changed. Targets cap at 1,000 and an empty target set is `400 PRICING_TARGETS_REQUIRED`,
+so the whole catalogue cannot be repriced by omission. Margin is labelled `gross merchandise
+margin` and appears only on Super Admin surfaces. Currency conversion (all amounts are PKR),
+competitor and dynamic repricing, scheduled repricing runs, per-customer and per-channel price
+lists, tax-inclusive rules, and all pricing frontend surfaces are deferred.
+
+## Dropshipping and publication
+
+Design notes: [DROPSHIPPING_ARCHITECTURE.md](./DROPSHIPPING_ARCHITECTURE.md).
+
+| Method | Path                                                      | Access      | Purpose                                              | Implemented | Tested          | Frontend needed |
+| ------ | --------------------------------------------------------- | ----------- | ---------------------------------------------------- | ----------- | --------------- | --------------- |
+| GET    | `/api/v1/admin/supplier-sources`                          | Super Admin | Sourcing records with cost, stock, and freshness     | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/supplier-sources/:id`                      | Super Admin | One sourcing record                                  | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/products/:productId/supplier-sources`      | Super Admin | Every supplier offering one product                  | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/dropship-fulfillments/cancellation-policy` | Super Admin | What cancelling means at each status                 | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/dropship-fulfillments`                     | Super Admin | List by supplier, status, order, and date            | Yes         | Real-Mongo HTTP | Later           |
+| GET    | `/api/v1/admin/dropship-fulfillments/:id`                 | Super Admin | Detail with timeline and allowed transitions         | Yes         | Real-Mongo HTTP | Later           |
+| PATCH  | `/api/v1/admin/dropship-fulfillments/:id`                 | Super Admin | Atomically advance status; record tracking and notes | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/products/publish-preview`                  | Super Admin | Per-product publishability verdict; writes nothing   | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/products/:id/publish`                      | Super Admin | Publish one product through the validation gate      | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/products/publish`                          | Super Admin | Bulk publish, capped at 200 unique ids               | Yes         | Real-Mongo HTTP | Later           |
+| POST   | `/api/v1/admin/products/archive`                          | Super Admin | Bulk archive, capped at 200 unique ids               | Yes         | Real-Mongo HTTP | Later           |
+
+There is one canonical `Product`; `fulfillmentType: OWN_STOCK | DROPSHIP` says how a line is
+fulfilled and no parallel catalogue was created. Supplier stock lives only in
+`SupplierCatalogItem`, is advisory, and **never touches `InventoryBalance`** — a dropship line
+reserves, decrements, and restores nothing, and writes no `InventoryMovement`. Sourcing records
+are read-only over HTTP because cost and stock arrive from a supplier file rather than being typed
+in. Checkout creates one fulfilment per supplier under the order's `Idempotency-Key`, unique on
+`{ order, supplier }`; there is deliberately **no route that creates a fulfilment by hand**, and
+fulfilment status is independent of `Order.orderStatus`. Publication is enforced in the service
+layer, so creating or patching a product into `ACTIVE` passes the same gate as the publish route,
+and no import, pricing run, or fulfilment transition can publish anything. Customer-facing
+payloads never expose `fulfillmentType`, supplier identity, `supplierCost`, `unitCost`, or margin.
+Supplier logins and portals, supplier API/EDI transmission, supplier stock webhooks, carrier
+tracking lookups, supplier invoicing, payouts, commission and margin settlement, multi-currency
+supplier costs, and all dropshipping frontend surfaces are deferred. No legacy `/api/*` route and
+no frontend application code was modified.

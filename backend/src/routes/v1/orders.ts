@@ -8,6 +8,7 @@ import { ReturnRequest } from '../../models/return.js';
 import { cancelOrder, checkout, OrderError, requestReturn } from '../../services/orderService.js';
 import { buildInvoice } from '../../services/invoice.js';
 import { renderInvoicePdf } from '../../services/invoicePdf.js';
+import { customerOrder } from '../../serializers/index.js';
 import { sendFailure, sendSuccess } from '../../utils/api-response.js';
 const router = express.Router();
 const oid = /^[a-f\d]{24}$/i;
@@ -32,11 +33,13 @@ const listQuery = z
     status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']).optional(),
   })
   .strict();
+// `DROPSHIP_UNAVAILABLE` is the supplier-side twin of `STOCK_UNAVAILABLE`: a well-formed
+// request for goods that are not obtainable, so it answers 409 alongside it (§30).
 const fail = (e: unknown, r: any, s: any, n: any) =>
   e instanceof OrderError
     ? sendFailure(
         s,
-        e.code === 'ORDER_NOT_FOUND' || e.code === 'ADDRESS_NOT_FOUND' ? 404 : e.code === 'STOCK_UNAVAILABLE' ? 409 : 400,
+        e.code === 'ORDER_NOT_FOUND' || e.code === 'ADDRESS_NOT_FOUND' ? 404 : e.code === 'STOCK_UNAVAILABLE' || e.code === 'DROPSHIP_UNAVAILABLE' ? 409 : 400,
         e.code,
         e.message,
         r.requestId
@@ -49,7 +52,7 @@ router.post('/checkout', validate(checkoutBody), async (r, s, n) => {
   if (!key || key.length < 8 || key.length > 128)
     return sendFailure(s, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key header is required.', r.requestId);
   try {
-    return sendSuccess(s, await checkout(r.auth!.userId, { ...r.body, idempotencyKey: key }, r.requestId), 201);
+    return sendSuccess(s, customerOrder(await checkout(r.auth!.userId, { ...r.body, idempotencyKey: key }, r.requestId)), 201);
   } catch (e) {
     return fail(e, r, s, n);
   }
@@ -67,7 +70,7 @@ router.get('/orders', validate(listQuery, 'query'), async (r, s, n) => {
         .lean(),
       Order.countDocuments(filter),
     ]);
-    return sendSuccess(s, data, 200, { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
+    return sendSuccess(s, data.map(customerOrder), 200, { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (e) {
     return n(e);
   }
@@ -145,14 +148,14 @@ router.get('/refunds', async (r, s, n) => {
 router.get('/orders/:orderId', validate(params, 'params'), async (r, s, n) => {
   try {
     const order = await Order.findOne({ _id: r.params.orderId, customer: r.auth!.userId }).lean();
-    return order ? sendSuccess(s, order) : sendFailure(s, 404, 'ORDER_NOT_FOUND', 'Order not found.', r.requestId);
+    return order ? sendSuccess(s, customerOrder(order)) : sendFailure(s, 404, 'ORDER_NOT_FOUND', 'Order not found.', r.requestId);
   } catch (e) {
     return n(e);
   }
 });
 router.post('/orders/:orderId/cancel', validate(params, 'params'), validate(emptyBody), async (r, s, n) => {
   try {
-    return sendSuccess(s, await cancelOrder(r.auth!.userId, String(r.params.orderId), r.requestId));
+    return sendSuccess(s, customerOrder(await cancelOrder(r.auth!.userId, String(r.params.orderId), r.requestId)));
   } catch (e) {
     return fail(e, r, s, n);
   }

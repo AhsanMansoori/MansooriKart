@@ -25,6 +25,10 @@ import adminCustomerRoutes from './routes/v1/adminCustomers.js';
 import adminPurchasingRoutes from './routes/v1/adminPurchasing.js';
 import adminFinanceRoutes from './routes/v1/adminFinance.js';
 import adminReportsRoutes from './routes/v1/adminReports.js';
+import adminCatalogImportRoutes from './routes/v1/adminCatalogImports.js';
+import adminPricingRoutes from './routes/v1/adminPricing.js';
+import adminSupplierSourceRoutes from './routes/v1/adminSupplierSources.js';
+import adminDropshipFulfillmentRoutes from './routes/v1/adminDropshipFulfillments.js';
 
 /**
  * Clean TypeScript composition root. Route families are ported here incrementally;
@@ -66,6 +70,10 @@ export function createApp(config: BackendConfig = getConfig()): express.Express 
   app.use('/api/v1/admin', adminPurchasingRoutes);
   app.use('/api/v1/admin', adminFinanceRoutes);
   app.use('/api/v1/admin', adminReportsRoutes);
+  app.use('/api/v1/admin', adminCatalogImportRoutes);
+  app.use('/api/v1/admin', adminPricingRoutes);
+  app.use('/api/v1/admin', adminSupplierSourceRoutes);
+  app.use('/api/v1/admin', adminDropshipFulfillmentRoutes);
   app.use('/api/v1/reviews', reviewRoutes);
   app.use('/api/v1/admin', adminReviewRoutes);
   app.use(notFound);
