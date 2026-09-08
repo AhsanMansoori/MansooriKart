@@ -356,7 +356,7 @@ export async function orderPaymentPosture(range: Range) {
       { $group: { _id: null, count: { $sum: 1 }, value: { $sum: '$total' } } },
     ]),
   ]);
-  const unpaid = byPayment.filter((row: any) => row._id !== 'PAID');
+  const unpaid = byPayment.filter((row: any) => !REALIZED_ORDER.paymentStatus.$in.includes(row._id));
   return {
     byPaymentStatus: byPayment.map((row: any) => ({ paymentStatus: row._id ?? 'UNKNOWN', orders: row.count, value: money(row.value) })),
     paidOrders: { count: paid[0]?.count ?? 0, value: money(paid[0]?.value ?? 0) },

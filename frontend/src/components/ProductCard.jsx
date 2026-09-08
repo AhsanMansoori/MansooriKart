@@ -131,8 +131,12 @@ export default function ProductCard({ product, addToCart }) {
           </Typography>
         )}
         {typeof product?.stock === 'number' && (
-          <Typography variant="caption" color={product.stock > 5 ? 'success.main' : 'warning.main'} sx={{ mt: 1, display: 'block' }}>
-            {product.stock > 5 ? `${product.stock} in stock` : 'Limited stock available'}
+          <Typography
+            variant="caption"
+            color={product?.availability?.canPurchase === false ? 'error.main' : product.stock > 5 ? 'success.main' : 'warning.main'}
+            sx={{ mt: 1, display: 'block' }}
+          >
+            {product?.availability?.canPurchase === false ? 'Out of stock' : product.stock > 5 ? `${product.stock} in stock` : 'Limited stock available'}
           </Typography>
         )}
       </CardContent>

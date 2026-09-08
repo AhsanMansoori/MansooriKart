@@ -26,7 +26,7 @@ const checkout = (t: string, a: string, key: string, couponCode?: string) =>
     .set('Authorization', `Bearer ${t}`)
     .set('Idempotency-Key', key)
     .send({ addressId: a, paymentMethod: 'CASH_ON_DELIVERY', ...(couponCode ? { couponCode } : {}) });
-test('checkout compensates order persistence failure and concurrent last stock is safe', { concurrency: false }, async () => {
+test('checkout transaction aborts on order persistence failure and concurrent last stock is safe', { concurrency: false }, async () => {
   const mongo = await MongoMemoryServer.create({ binary: { downloadDir: `${process.cwd()}/.cache/mongodb-binaries` } });
   await mongoose.connect(mongo.getUri());
   try {

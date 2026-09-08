@@ -98,7 +98,7 @@ test('finance ERP records expenses safely and reports real, reconcilable money',
         tax: 2_000,
         total: 52_500,
         paymentMethod: 'CASH_ON_DELIVERY',
-        paymentStatus: 'PAID',
+        paymentStatus: 'PARTIALLY_REFUNDED',
         orderStatus: 'DELIVERED',
       },
       {
@@ -161,7 +161,7 @@ test('finance ERP records expenses safely and reports real, reconcilable money',
         tax: 0,
         total: 10_000,
         paymentMethod: 'CASH_ON_DELIVERY',
-        paymentStatus: 'PAID',
+        paymentStatus: 'REFUNDED',
         orderStatus: 'DELIVERED',
       },
     ]);
@@ -684,10 +684,13 @@ test('finance ERP records expenses safely and reports real, reconcilable money',
     assert.equal(dashboard.orders.unpaid, 2);
     assert.equal(dashboard.orders.unpaidCodOrders, 1, 'delivered but uncollected');
     assert.equal(dashboard.orders.unpaidCodValue, 30_000);
+    // Partially and fully refunded paid orders remain realized; accepted refunds
+    // reduce revenue exactly once instead of making the original sale disappear.
     assert.deepEqual(
       dashboard.orders.byPaymentStatus.map((row: any) => [row.paymentStatus, row.orders, row.value]),
       [
-        ['PAID', 2, 62_500],
+        ['PARTIALLY_REFUNDED', 1, 52_500],
+        ['REFUNDED', 1, 10_000],
         ['UNPAID', 2, 47_500],
       ]
     );

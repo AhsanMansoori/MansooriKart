@@ -98,8 +98,9 @@ coincidental.
 
 ```
 grossSales           = Σ Order.total                      (every order, any status)
-realizedRevenue      = Σ Order.total   WHERE orderStatus = 'DELIVERED'
-                                         AND paymentStatus = 'PAID'
+realizedRevenue      = Σ Order.total   WHERE orderStatus IN
+                         {DELIVERED, RETURN_REQUESTED, RETURN_APPROVED, RETURN_REJECTED, RETURNED}
+                                         AND paymentStatus IN {PAID, PARTIALLY_REFUNDED, REFUNDED}
 refunds              = Σ Refund.amount WHERE status ≠ 'FAILED'
 netSales             = grossSales      − refunds
 netRealizedRevenue   = realizedRevenue − refunds
@@ -116,13 +117,13 @@ These are the Phase D definitions unchanged. A margin over zero revenue is repor
 
 ### Order status and payment status effects
 
-| Situation                                  | Counted as realized revenue? | Rationale                                                     |
-| ------------------------------------------ | ---------------------------- | ------------------------------------------------------------- |
-| `DELIVERED` + `PAID`                       | **Yes**                      | Goods delivered and cash collected.                           |
-| `DELIVERED` + `UNPAID` (COD not collected) | **No**                       | Delivery is not collection. Surfaced as `unpaidCodOrders`.    |
-| `PENDING` / `PROCESSING` / `SHIPPED`       | No                           | Not yet delivered.                                            |
-| `CANCELLED`                                | **No**                       | Never realized. Still counted in `grossSales` and `byStatus`. |
-| `REFUNDED` / partially refunded            | Realized, then reduced       | Refunds are a period fact subtracted once at summary level.   |
+| Situation                                                | Counted as realized revenue?       | Rationale                                                      |
+| -------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
+| Delivered/return lifecycle + paid/refunded payment state | **Yes, before refund subtraction** | The sale remains realized and accepted refunds reduce it once. |
+| `DELIVERED` + `UNPAID` (COD not collected)               | **No**                             | Delivery is not collection. Surfaced as `unpaidCodOrders`.     |
+| `PENDING` / `PROCESSING` / `SHIPPED`                     | No                                 | Not yet delivered.                                             |
+| `CANCELLED`                                              | **No**                             | Never realized. Still counted in `grossSales` and `byStatus`.  |
+| `REFUNDED` / `PARTIALLY_REFUNDED` payment state          | Realized, then reduced             | Refunds are a period fact subtracted once at summary level.    |
 
 **Cancelled orders (§46).** A cancelled order can never satisfy
 `orderStatus = 'DELIVERED'`, so it contributes nothing to `realizedRevenue`,

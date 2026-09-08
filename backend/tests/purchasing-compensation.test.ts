@@ -25,7 +25,7 @@ const onHand = async (productId: string) =>
  * index makes the second write of a given audit action genuinely violate a
  * constraint, exactly as a storage fault would.
  */
-test('purchasing compensates inventory when a receipt or return cannot be audited', async () => {
+test('purchasing transactions abort inventory when a receipt or return cannot be audited', async () => {
   const mongo = await MongoMemoryServer.create({ binary: { downloadDir: `${process.cwd()}/.cache/mongodb-binaries` } });
   await mongoose.connect(mongo.getUri());
   try {
@@ -87,8 +87,8 @@ test('purchasing compensates inventory when a receipt or return cannot be audite
     );
     // No phantom inventory: the balance, the mirror and the order counters are all back.
     assert.equal(await onHand(String(product._id)), 5, 'an unauditable receipt must not leave stock behind');
-    assert.equal((await Product.findById(product._id).lean()).stock, 5, 'the Product.stock mirror must be compensated too');
-    assert.equal(await GoodsReceipt.countDocuments({}), receiptsBefore, 'the receipt document must be removed');
+    assert.equal((await Product.findById(product._id).lean()).stock, 5, 'the Product.stock mirror must remain unchanged');
+    assert.equal(await GoodsReceipt.countDocuments({}), receiptsBefore, 'the aborted receipt document must not persist');
     let stored = await PurchaseOrder.findById(purchaseOrder._id).lean();
     assert.equal(stored.items[0].quantityReceived, 3, 'the reserved receiving capacity must be released');
     assert.equal(stored.items[0].quantityAccepted, 3);

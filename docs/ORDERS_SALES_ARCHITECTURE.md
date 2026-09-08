@@ -245,18 +245,18 @@ estimatedValue, currency, lastActivityAt, ageHours, createdAt, updatedAt }`. Onl
 `GET /api/v1/admin/sales/dashboard` accepts either `range=7d|30d|90d` **or** both `from` and
 `to`; anything else is a 400. All figures are scoped to `createdAt` within the window.
 
-| Figure              | Definition                                                                     |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `orders`            | Count of orders created in range, any status                                   |
-| `grossSales`        | `Σ order.total` for orders created in range, any status                        |
-| `realizedRevenue`   | `Σ order.total` where `orderStatus = DELIVERED` **and** `paymentStatus = PAID` |
-| `refunds`           | `Σ refund.amount` for refunds created in range with `status ≠ FAILED`          |
-| `netSales`          | `grossSales − refunds`                                                         |
-| `averageOrderValue` | `avg(order.total)` over orders created in range                                |
-| `cancelledOrders`   | Count where `orderStatus = CANCELLED`                                          |
-| `returnedOrders`    | Count where `orderStatus ∈ {RETURN_REQUESTED, RETURN_APPROVED, RETURNED}`      |
-| `topProducts`       | Top 10 order-item groups by summed quantity, with summed `lineSubtotal`        |
-| `recentOrders`      | 10 most recent orders (safe fields only)                                       |
+| Figure              | Definition                                                                                                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orders`            | Count of orders created in range, any status                                                                                                                                           |
+| `grossSales`        | `Σ order.total` for orders created in range, any status                                                                                                                                |
+| `realizedRevenue`   | `Σ order.total` for delivered/return lifecycle orders whose payment state is `PAID`, `PARTIALLY_REFUNDED`, or `REFUNDED`; accepted refunds are subtracted once in `netRealizedRevenue` |
+| `refunds`           | `Σ refund.amount` for refunds created in range with `status ≠ FAILED`                                                                                                                  |
+| `netSales`          | `grossSales − refunds`                                                                                                                                                                 |
+| `averageOrderValue` | `avg(order.total)` over orders created in range                                                                                                                                        |
+| `cancelledOrders`   | Count where `orderStatus = CANCELLED`                                                                                                                                                  |
+| `returnedOrders`    | Count where `orderStatus ∈ {RETURN_REQUESTED, RETURN_APPROVED, RETURNED}`                                                                                                              |
+| `topProducts`       | Top 10 order-item groups by summed quantity, with summed `lineSubtotal`                                                                                                                |
+| `recentOrders`      | 10 most recent orders (safe fields only)                                                                                                                                               |
 
 Deliberate consequences:
 

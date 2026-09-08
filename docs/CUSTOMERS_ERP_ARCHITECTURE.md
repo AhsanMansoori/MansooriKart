@@ -50,20 +50,20 @@ any depth.
 Statistics are computed by a `$lookup` into the `orders` collection per customer. Nothing is
 stored, cached, denormalised, or accepted from a client.
 
-| Figure              | Definition                                                                     |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `totalOrders`       | Count of the customer's orders, **any** status                                 |
-| `grossSpend`        | `Σ order.total`, any status                                                    |
-| `realizedSpend`     | `Σ order.total` where `orderStatus = DELIVERED` **and** `paymentStatus = PAID` |
-| `cancelledOrders`   | Count where `orderStatus = CANCELLED`                                          |
-| `averageOrderValue` | `grossSpend / totalOrders` (0 when there are no orders)                        |
-| `firstOrderAt`      | `min(order.createdAt)`                                                         |
-| `lastOrderAt`       | `max(order.createdAt)`                                                         |
+| Figure              | Definition                                                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `totalOrders`       | Count of the customer's orders, **any** status                                                                           |
+| `grossSpend`        | `Σ order.total`, any status                                                                                              |
+| `realizedSpend`     | `Σ order.total` for delivered/return lifecycle orders whose payment state is `PAID`, `PARTIALLY_REFUNDED`, or `REFUNDED` |
+| `cancelledOrders`   | Count where `orderStatus = CANCELLED`                                                                                    |
+| `averageOrderValue` | `grossSpend / totalOrders` (0 when there are no orders)                                                                  |
+| `firstOrderAt`      | `min(order.createdAt)`                                                                                                   |
+| `lastOrderAt`       | `max(order.createdAt)`                                                                                                   |
 
-`realizedSpend` uses exactly the same `DELIVERED + PAID` condition as the Phase D sales
-dashboard, so lifetime value and realized revenue can never disagree. A cancelled order and
-an uncollected COD order both raise `grossSpend` and neither raises `realizedSpend` — which is
-the point: unpaid cash is not lifetime value.
+`realizedSpend` uses the same shared realized-order predicate as the sales and finance
+dashboards, so lifetime value and realized revenue cannot disagree merely because a paid order
+later enters a partial or full refund state. A cancelled order and an uncollected COD order both
+raise `grossSpend` and neither raises `realizedSpend`; unpaid cash is not lifetime value.
 
 ## 4. Segmentation (read-only labels)
 

@@ -14,7 +14,7 @@ const dataPractices = [
   },
   {
     title: 'How we protect it',
-    body: 'All sensitive data is encrypted in transit and at rest. We partner with SOC 2 Type II certified providers and review access logs weekly.',
+    body: 'Passwords are stored as one-way hashes. Access to customer and order records is restricted by authenticated roles, and sensitive fields are excluded from API responses.',
     icon: <LockIcon color="primary" fontSize="large" />,
   },
   {
@@ -36,7 +36,7 @@ function Privacy() {
           We collect only what we need to ship your order and keep your account working. The details below outline exactly how it works.
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          Last updated: April 7, 2025
+          Last updated: September 8, 2026
         </Typography>
       </Stack>
 
@@ -49,7 +49,7 @@ function Privacy() {
                   Data lifecycle in plain English
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  From checkout to delivery alerts, our systems keep your information close and locked. We will never sell or rent your personal data.
+                  Account, address, cart, and order data is stored so MansooriKart can operate the service and fulfil orders.
                 </Typography>
               </Stack>
               <ShieldIcon color="primary" sx={{ fontSize: 52 }} />
@@ -81,7 +81,7 @@ function Privacy() {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Sign-in with Google is handled by Google as an identity provider, and orders are paid on delivery rather than through a third-party payment
-              processor. Any processor we rely on is bound by a data processing agreement and receives only the minimum required to do its job.
+              processor. Transactional email delivery is not currently connected to an external provider.
             </Typography>
           </Stack>
 
@@ -90,8 +90,8 @@ function Privacy() {
               Requesting access or deletion
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Send us a request through the Support Centre with “Data Request” as the topic. We will validate your identity before fulfilling the request within
-              30 days.
+              Send us a request through the Support Centre with “Data Request” as the topic. MansooriKart will validate your identity and respond through the
+              available support process.
             </Typography>
           </Stack>
 

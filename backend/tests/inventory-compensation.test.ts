@@ -5,7 +5,7 @@ import { MongoMemoryServer } from './helpers/mongo.js';
 import { InventoryMovement } from '../src/models/inventoryMovement.js';
 import { Product } from '../src/models/product.js';
 import { adjustStock } from '../src/services/inventoryService.js';
-test('inventory service compensates stock when real movement persistence validation fails', async () => {
+test('inventory transaction aborts stock when real movement persistence validation fails', async () => {
   const mongo = await MongoMemoryServer.create({ binary: { downloadDir: `${process.cwd()}/.cache/mongodb-binaries` } });
   await mongoose.connect(mongo.getUri());
   try {

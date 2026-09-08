@@ -1,24 +1,28 @@
-# Legacy API Removal Checklist
+# Legacy API Removal Evidence
 
-The legacy API is frozen for compatibility with the current frontend. New functionality belongs only in `/api/v1`. No legacy route is safe to delete until the frontend API-cutover phase has passed its tests and live verification.
+The unversioned JavaScript backend was removed after its public behavior was mapped to the TypeScript `/api/v1` runtime. No active frontend module or backend module imports it. Historical implementation files, scripts, vector indexes, obsolete tests, and unversioned route mounts are absent from the current tree.
 
-| Method | Old path                           | Target v1 path                                           | Current frontend user                | Migration status                          | Safe to delete |
-| ------ | ---------------------------------- | -------------------------------------------------------- | ------------------------------------ | ----------------------------------------- | -------------- |
-| GET    | `/api/products`                    | `/api/v1/products`                                       | `App.jsx`, `src/lib/api/products.ts` | Not migrated                              | No             |
-| GET    | `/api/products/:id`                | `/api/v1/products/:identifier`                           | `ProductDetails.jsx`                 | Not migrated                              | No             |
-| GET    | `/api/products/:id/similar`        | `/api/v1/products/:identifier/recommendations` (planned) | `ProductDetails.jsx`                 | Not migrated                              | No             |
-| POST   | `/api/products/recommendations`    | `/api/v1/products/recommendations` (planned)             | `Home.jsx`                           | Not migrated                              | No             |
-| GET    | `/api/products/category/:category` | `/api/v1/products?category=`                             | No direct consumer                   | Frozen                                    | No             |
-| PUT    | `/api/products/:id/rating`         | `/api/v1/products/:id/reviews`                           | `ProductDetails.jsx`                 | Not migrated; unsafe legacy demo endpoint | No             |
-| GET    | `/api/search`                      | `/api/v1/products?search=`                               | `NavigationBar.jsx`                  | Not migrated                              | No             |
-| POST   | `/api/auth/register`               | `/api/v1/auth/register`                                  | `Register.jsx`                       | Not migrated                              | No             |
-| POST   | `/api/auth/login`                  | `/api/v1/auth/login`                                     | `Login.jsx`                          | Not migrated                              | No             |
-| POST   | `/api/auth/forgot-password`        | `/api/v1/auth/forgot-password`                           | `ForgotPassword.jsx`                 | Not migrated                              | No             |
-| POST   | `/api/auth/reset-password`         | `/api/v1/auth/reset-password`                            | `ResetPassword.jsx`                  | Not migrated                              | No             |
-| POST   | `/api/checkout/create-order`       | `/api/v1/checkout`                                       | `Checkout.jsx`                       | Not migrated                              | No             |
-| POST   | `/api/orders/track`                | `/api/v1/orders/:id` for authenticated users             | `OrderTracking.jsx`                  | Contract decision needed                  | No             |
-| GET    | `/api/admin/verification`          | `/api/v1/admin/*`                                        | No current consumer                  | Frozen                                    | No             |
+| Removed contract                                 | Active replacement                                                        | Frontend consumer                              | Evidence                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------- |
+| `GET /api/products` and search/category variants | `GET /api/v1/products` with bounded filters                               | catalog service, Home, Shop, navigation search | catalog and legacy-parity integration tests                     |
+| `GET /api/products/:id`                          | `GET /api/v1/products/:identifier`                                        | ProductDetails                                 | catalog/publication tests                                       |
+| heuristic/vector similar-products routes         | `GET /api/v1/products/:identifier/recommendations` using catalog metadata | ProductDetails and Home                        | legacy-parity integration test                                  |
+| `PUT /api/products/:id/rating`                   | authenticated review endpoints under `/api/v1/products/:id/reviews`       | review service and ProductDetails              | review integration tests                                        |
+| `/api/auth/*`                                    | `/api/v1/auth/*`                                                          | auth session and Google sign-in services       | local, Google, reset, and rate-limit tests                      |
+| `/api/checkout/create-order`                     | `POST /api/v1/checkout/preview` then `POST /api/v1/checkout`              | checkout service and Checkout page             | checkout evidence/transaction tests and frontend checkout tests |
+| `/api/orders/track`                              | owner-scoped `GET /api/v1/orders/:id`                                     | orders service and OrderTracking               | order ownership tests                                           |
+| legacy cart/wishlist/me routes                   | `/api/v1/cart`, `/api/v1/cart/sync`, `/api/v1/wishlist`, `/api/v1/me/*`   | API client services                            | cart/wishlist/HTTP-contract tests                               |
+| legacy admin verification                        | role-protected `/api/v1/admin/*`                                          | current administration client contracts        | all ERP integration suites                                      |
 
-## Removal gate
+The deleted vector and embedding paths have no replacement dependency because the active product discovery contract is MongoDB-backed. No Pinecone, Weaviate, FAISS, embedding, or AI environment variable is read by the active runtime.
 
-Legacy mounts may be removed only after all rows are migrated or formally retired, `/api/v1` contracts are frozen and tested, frontend regression/live verification passes, and a dedicated approval authorizes deletion.
+`backend/tests/legacy-parity.integration.test.ts` is the explicit runtime parity suite. The former JavaScript Jest suites are represented by the active tests as follows:
+
+| Removed suite     | Active evidence                                                                 |
+| ----------------- | ------------------------------------------------------------------------------- |
+| auth              | `auth-local`, `auth-google`, `auth-rate-limit`, environment config              |
+| checkout          | checkout evidence, checkout transaction, cart, coupons, orders                  |
+| orders            | orders, order visibility, cancellation/refunds, returns/security, invoice/email |
+| products/search   | legacy parity, storefront/publication, reviews, catalog administration          |
+| embedding service | intentionally retired; absence is verified by repository scans                  |
+| v1 utilities      | v1 HTTP contract plus domain integration suites                                 |

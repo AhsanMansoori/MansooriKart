@@ -35,6 +35,7 @@ import adminSettingsRoutes from './routes/v1/adminSettings.js';
 import storefrontRoutes from './routes/v1/storefront.js';
 import { getStoreConfiguration, isMaintenanceMode } from './services/storeConfigService.js';
 import { sendFailure } from './utils/api-response.js';
+import { requireAuth } from './middleware/auth.js';
 
 /**
  * Clean TypeScript composition root. Route families are ported here incrementally;
@@ -54,6 +55,11 @@ export function createApp(config: BackendConfig = getConfig()): express.Express 
 
   app.get('/health', (_request, response) => response.status(200).json({ status: 'ok' }));
   app.get('/api/v1/health', (_request, response) => response.status(200).json({ success: true, data: { status: 'ok' } }));
+
+  // These protected commerce surfaces must authenticate before maintenance reads
+  // configuration from MongoDB. The route-level guard becomes a no-op after this.
+  app.use('/api/v1/cart', requireAuth);
+  app.use('/api/v1/checkout', requireAuth);
 
   // Maintenance keeps authentication, health, admin, configuration and cart reads available.
   // Store browsing, cart writes and checkout are closed with one consistent 503 response.

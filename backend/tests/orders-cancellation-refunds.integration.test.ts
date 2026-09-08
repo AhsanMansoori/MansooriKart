@@ -82,6 +82,37 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
     assert.equal(history.at(-1).reason, 'Admin cancellation');
     assert.equal(await AuditLog.countDocuments({ resourceId: String(first._id), action: 'ORDER_ADMIN_CANCELLED' }), 1);
 
+    // A real audit-store constraint failure aborts cancellation and every stock
+    // restoration write. Once the fault clears, the same order can be cancelled
+    // successfully and its inventory is restored once.
+    const faulted = await placeOrder('cancel-order-audit-fault', 2);
+    assert.equal(await balanceOf(), 28);
+    const blockingAudit = await AuditLog.create({
+      actor: admin._id,
+      action: 'ORDER_CANCELLED',
+      resourceType: 'Order',
+      resourceId: 'forced-audit-conflict',
+    });
+    await AuditLog.collection.createIndex(
+      { action: 1 },
+      { name: 'forced_order_cancel_audit_unique', unique: true, partialFilterExpression: { action: 'ORDER_CANCELLED' } }
+    );
+    r = await request(app).post(`/api/v1/orders/${faulted._id}/cancel`).set('Authorization', `Bearer ${ct}`).send({});
+    assert.equal(r.status, 500);
+    assert.equal((await Order.findById(faulted._id).lean())!.orderStatus, 'PENDING');
+    assert.equal(await balanceOf(), 28);
+    assert.equal(await stockOf(), 28);
+    assert.equal(await InventoryMovement.countDocuments({ type: 'CANCELLATION', referenceId: String(faulted._id) }), 0);
+    await AuditLog.collection.dropIndex('forced_order_cancel_audit_unique');
+    await blockingAudit.deleteOne();
+    r = await request(app).post(`/api/v1/orders/${faulted._id}/cancel`).set('Authorization', `Bearer ${ct}`).send({});
+    assert.equal(r.status, 200);
+    assert.equal((await Order.findById(faulted._id).lean())!.orderStatus, 'CANCELLED');
+    assert.equal(await balanceOf(), 30);
+    assert.equal(await stockOf(), 30);
+    assert.equal(await InventoryMovement.countDocuments({ type: 'CANCELLATION', referenceId: String(faulted._id) }), 1);
+    assert.equal(await AuditLog.countDocuments({ resourceId: String(faulted._id), action: 'ORDER_CANCELLED' }), 1);
+
     // A repeat cancellation must not restore inventory a second time.
     r = await request(app).post(`/api/v1/admin/orders/${first._id}/cancel`).set('Authorization', `Bearer ${st}`).send({});
     assert.equal(r.status, 400);
@@ -222,6 +253,80 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
     );
     assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1200);
     assert.equal((await postRefund('refund-after-release-key', 50)).status, 201);
+  } finally {
+    await mongoose.disconnect();
+    await mongo.stop();
+  }
+});
+
+test('refund persistence and audit faults abort the accumulator and remain retryable', async () => {
+  const mongo = await MongoMemoryServer.create({ binary: { downloadDir: `${process.cwd()}/.cache/mongodb-binaries` } });
+  await mongoose.connect(mongo.getUri());
+  try {
+    await Promise.all([Order.init(), Refund.init(), AuditLog.init()]);
+    const [customer, admin] = await User.create([
+      { name: 'Refund Customer', email: 'refund-fault-customer@test.local', password: 'x', role: 'CUSTOMER' },
+      { name: 'Refund Admin', email: 'refund-fault-admin@test.local', password: 'x', role: 'SUPER_ADMIN' },
+    ]);
+    const token = jwt.sign({ sub: String(admin._id), role: 'SUPER_ADMIN' }, process.env.JWT_SECRET!);
+    const order = await Order.create({
+      customer: customer._id,
+      orderNumber: 'MK-REFUND-FAULT',
+      idempotencyKey: 'refund-fault-order',
+      items: [
+        {
+          productId: new mongoose.Types.ObjectId(),
+          name: 'Refund fault item',
+          sku: 'REFUND-FAULT-SKU',
+          unitPrice: 1000,
+          quantity: 1,
+          lineSubtotal: 1000,
+          unitCost: 400,
+          lineCost: 400,
+        },
+      ],
+      shippingAddress: { fullName: 'Refund Customer', phone: '03001', addressLine1: 'House 1', city: 'Karachi', country: 'PK' },
+      subtotal: 1000,
+      shipping: 0,
+      tax: 0,
+      total: 1000,
+      paymentMethod: 'CASH_ON_DELIVERY',
+      paymentStatus: 'PAID',
+      orderStatus: 'DELIVERED',
+    });
+    const refundUrl = `/api/v1/admin/orders/${order._id}/refunds`;
+    const post = (key: string) =>
+      request(app).post(refundUrl).set('Authorization', `Bearer ${token}`).set('Idempotency-Key', key).send({ amount: 100, reason: 'Forced fault proof' });
+
+    // The collection validator is a real refund-document persistence failure.
+    await mongoose.connection.db!.command({
+      collMod: Refund.collection.name,
+      validator: { idempotencyKey: { $ne: 'forced-refund-persistence' } },
+      validationLevel: 'strict',
+      validationAction: 'error',
+    });
+    assert.equal((await post('forced-refund-persistence')).status, 500);
+    assert.equal(await Refund.countDocuments({ order: order._id }), 0);
+    assert.equal((await Order.findById(order._id).lean())!.refundedTotal, 0);
+    await mongoose.connection.db!.command({ collMod: Refund.collection.name, validator: {} });
+    assert.equal((await post('forced-refund-persistence')).status, 201);
+    assert.equal(await Refund.countDocuments({ order: order._id }), 1);
+    assert.equal((await Order.findById(order._id).lean())!.refundedTotal, 100);
+
+    // A unique partial index makes the audit insert fail after the refund insert
+    // was attempted. The transaction leaves neither the second refund nor headroom.
+    await AuditLog.collection.createIndex(
+      { action: 1 },
+      { name: 'forced_refund_audit_unique', unique: true, partialFilterExpression: { action: 'REFUND_CREATED' } }
+    );
+    assert.equal((await post('forced-refund-audit')).status, 500);
+    assert.equal(await Refund.countDocuments({ order: order._id }), 1);
+    assert.equal((await Order.findById(order._id).lean())!.refundedTotal, 100);
+    await AuditLog.collection.dropIndex('forced_refund_audit_unique');
+    assert.equal((await post('forced-refund-audit')).status, 201);
+    assert.equal(await Refund.countDocuments({ order: order._id }), 2);
+    assert.equal((await Order.findById(order._id).lean())!.refundedTotal, 200);
+    assert.equal(await AuditLog.countDocuments({ action: 'REFUND_CREATED', resourceType: 'Refund' }), 2);
   } finally {
     await mongoose.disconnect();
     await mongo.stop();

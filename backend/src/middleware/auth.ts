@@ -13,6 +13,7 @@ declare global {
 }
 
 export async function requireAuth(request: Request, response: Response, next: NextFunction): Promise<void> {
+  if (request.auth) return void next();
   const token = request.header('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return void sendFailure(response, 401, 'AUTH_UNAUTHORIZED', 'Authentication is required.', request.requestId);
   try {
