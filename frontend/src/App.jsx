@@ -21,6 +21,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import ShippingReturns from './pages/ShippingReturns';
 import OrderTracking from './pages/OrderTracking';
+import AdminApp from './components/AdminApp';
 import ScrollToTop from './components/ScrollToTop';
 import { fetchAllProducts } from './services/catalog';
 import { useNotifier } from './context/NotificationProvider';
@@ -95,6 +96,7 @@ const theme = createTheme({
 });
 
 function App() {
+  const isAdminPath = window.location.pathname.startsWith('/admin');
   const [products, setProducts] = React.useState([]);
   const [cart, setCart] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
@@ -119,6 +121,10 @@ function App() {
   }, [cart]);
 
   React.useEffect(() => {
+    if (isAdminPath) {
+      setLoading(false);
+      return undefined;
+    }
     let active = true;
 
     const fetchProducts = async () => {
@@ -162,7 +168,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [notify]);
+  }, [isAdminPath, notify]);
 
   const addToCart = React.useCallback(
     product => {
@@ -200,47 +206,56 @@ function App() {
       <CssBaseline />
       <BrowserRouter>
         <ScrollToTop />
-        <NavigationBar cartItemCount={cart.length} />
-        <Box component="main" sx={{ minHeight: 'calc(100vh - 200px)' }}>
-          <Container maxWidth="xl" sx={{ pb: 8 }}>
-            <Routes>
-              <Route path="/" element={<Home products={products} loading={loading} error={error} addToCart={addToCart} />} />
+        {isAdminPath ? (
+          <Routes>
+            <Route path="/admin/*" element={<AdminApp />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        ) : (
+          <>
+            <NavigationBar cartItemCount={cart.length} />
+            <Box component="main" sx={{ minHeight: 'calc(100vh - 200px)' }}>
+              <Container maxWidth="xl" sx={{ pb: 8 }}>
+                <Routes>
+                  <Route path="/" element={<Home products={products} loading={loading} error={error} addToCart={addToCart} />} />
 
-              <Route path="/shop" element={<Shop products={products} addToCart={addToCart} loading={loading} error={error} />} />
+                  <Route path="/shop" element={<Shop products={products} addToCart={addToCart} loading={loading} error={error} />} />
 
-              <Route path="/about" element={<About />} />
+                  <Route path="/about" element={<About />} />
 
-              <Route path="/support" element={<Support />} />
+                  <Route path="/support" element={<Support />} />
 
-              <Route path="/terms" element={<Terms />} />
+                  <Route path="/terms" element={<Terms />} />
 
-              <Route path="/privacy" element={<Privacy />} />
+                  <Route path="/privacy" element={<Privacy />} />
 
-              <Route path="/shipping-returns" element={<ShippingReturns />} />
+                  <Route path="/shipping-returns" element={<ShippingReturns />} />
 
-              <Route path="/order-tracking" element={<OrderTracking />} />
+                  <Route path="/order-tracking" element={<OrderTracking />} />
 
-              <Route path="/cart" element={<Cart cart={cart} setCart={setCart} />} />
+                  <Route path="/cart" element={<Cart cart={cart} setCart={setCart} />} />
 
-              <Route path="/checkout" element={<Checkout cartItems={cart} onOrderComplete={handleOrderComplete} />} />
+                  <Route path="/checkout" element={<Checkout cartItems={cart} onOrderComplete={handleOrderComplete} />} />
 
-              <Route path="/order-success" element={<OrderSuccess />} />
+                  <Route path="/order-success" element={<OrderSuccess />} />
 
-              <Route path="/product/:id" element={<ProductDetails addToCart={addToCart} />} />
+                  <Route path="/product/:id" element={<ProductDetails addToCart={addToCart} />} />
 
-              <Route path="/login" element={<Login />} />
+                  <Route path="/login" element={<Login />} />
 
-              <Route path="/register" element={<Register />} />
+                  <Route path="/register" element={<Register />} />
 
-              <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
 
-              <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
 
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </Container>
-        </Box>
-        <Footer />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </Container>
+            </Box>
+            <Footer />
+          </>
+        )}
       </BrowserRouter>
     </ThemeProvider>
   );
