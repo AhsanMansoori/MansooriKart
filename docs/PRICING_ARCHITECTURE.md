@@ -3,8 +3,7 @@
 Phase G: how a supplier cost becomes a MansooriKart selling price. Everything below describes the
 implemented `/api/v1` runtime (`backend/src/services/pricingService.ts`,
 `backend/src/services/bulkPricingService.ts`, `backend/src/routes/v1/adminPricing.ts`,
-`backend/src/models/pricingRule.ts`). The frozen legacy `/api/*` runtime is untouched, and no
-frontend was built in this phase.
+`backend/src/models/pricingRule.ts`). The removed legacy `/api/*` runtime has no active consumer.
 
 Companion documents: [CSV_CATALOG_IMPORT_ARCHITECTURE.md](./CSV_CATALOG_IMPORT_ARCHITECTURE.md) for
 where supplier costs come from, [DROPSHIPPING_ARCHITECTURE.md](./DROPSHIPPING_ARCHITECTURE.md) for

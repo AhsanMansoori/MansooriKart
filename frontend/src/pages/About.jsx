@@ -9,7 +9,7 @@ const milestones = [
   {
     year: '2018',
     title: 'Launch',
-    description: 'Started Fusion Electronics with a mission to curate gear that empowers creators and everyday innovators.',
+    description: 'Started MansooriKart with a mission to curate gear that empowers creators and everyday innovators.',
   },
   {
     year: '2020',
@@ -55,13 +55,13 @@ function About() {
   return (
     <Container maxWidth="lg" sx={{ pb: 10 }}>
       <Stack spacing={3} sx={{ textAlign: 'center', mt: 6, mb: 6 }} alignItems="center">
-        <Chip label="About Fusion" color="primary" variant="outlined" sx={{ alignSelf: 'center' }} />
+        <Chip label="About MansooriKart" color="primary" variant="outlined" sx={{ alignSelf: 'center' }} />
         <Typography variant="h3" fontWeight={800}>
           We exist to help you curate the future.
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 680, mx: 'auto', lineHeight: 1.9, textAlign: 'center' }}>
-          Fusion Electronics is a collective of engineers, industrial designers, and experience strategists. We scout the highest performing gadgets,
-          stress-test them in our lab, and package them into delightful experiences so you can focus on creating.
+          MansooriKart is a collective of engineers, industrial designers, and experience strategists. We scout the highest performing gadgets, stress-test them
+          in our lab, and package them into delightful experiences so you can focus on creating.
         </Typography>
       </Stack>
 

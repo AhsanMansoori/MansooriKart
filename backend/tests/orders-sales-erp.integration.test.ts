@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { Address } from '../src/models/address.js';
@@ -81,7 +81,7 @@ test('orders and sales ERP preserve ownership, snapshots, workflows, returns, re
     ]);
     assert.equal([one.status, two.status].filter(status => status === 201).length, 1);
     assert.equal(await ReturnRequest.countDocuments({ order: orderId }), 1);
-    const returnId = (one.status === 201 ? one : two).body.data._id;
+    const returnId = (one.status === 201 ? one : two).body.data.id;
     r = await request(app).get(`/api/v1/returns/${returnId}`).set('Authorization', `Bearer ${bt}`);
     assert.equal(r.status, 404);
     r = await request(app)

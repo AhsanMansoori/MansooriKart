@@ -9,7 +9,7 @@ import AnalyticsIcon from '@mui/icons-material/Analytics';
 const dataPractices = [
   {
     title: 'What we collect',
-    body: 'Account details (name, email, password hash), shipping addresses, order history, and optional preferences when you opt into personalization.',
+    body: 'Account details (name, email, and either a password hash or a Google sign-in identifier), shipping addresses, and order history.',
     icon: <AnalyticsIcon color="primary" fontSize="large" />,
   },
   {
@@ -19,7 +19,7 @@ const dataPractices = [
   },
   {
     title: 'Your controls',
-    body: 'Export or delete your account anytime from the profile dashboard. Marketing preferences can be adjusted at the bottom of every email.',
+    body: 'Update your profile details and saved addresses from your account at any time. To export or delete your account, send us a data request and we will handle it for you.',
     icon: <SettingsBackupRestoreIcon color="primary" fontSize="large" />,
   },
 ];
@@ -33,8 +33,7 @@ function Privacy() {
           Your trust is the most valuable tech we protect
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 680 }}>
-          We collect only what we need to ship exceptional products and continuously improve the Fusion experience. The details below outline exactly how it
-          works.
+          We collect only what we need to ship your order and keep your account working. The details below outline exactly how it works.
         </Typography>
         <Typography variant="caption" color="text.secondary">
           Last updated: April 7, 2025
@@ -81,8 +80,8 @@ function Privacy() {
               Third-party services we rely on
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Trusted partners such as Stripe, Pinecone, and Google Cloud act as processors under strict data processing agreements. Only the bare minimum
-              required to power payments, recommendations, or analytics is shared.
+              Sign-in with Google is handled by Google as an identity provider, and orders are paid on delivery rather than through a third-party payment
+              processor. Any processor we rely on is bound by a data processing agreement and receives only the minimum required to do its job.
             </Typography>
           </Stack>
 
@@ -91,14 +90,14 @@ function Privacy() {
               Requesting access or deletion
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Email privacy@fusionelectronics.io with the subject “Data Request” and our privacy desk will validate your identity before fulfilling the request
-              within 30 days.
+              Send us a request through the Support Centre with “Data Request” as the topic. We will validate your identity before fulfilling the request within
+              30 days.
             </Typography>
           </Stack>
 
           <Stack spacing={2}>
             <Typography variant="body2" color="text.secondary">
-              Questions about this policy? Reach out through the Support Centre or email privacy@fusionelectronics.io so we can help.
+              Questions about this policy? Reach out through the Support Centre so we can help.
             </Typography>
             <Stack direction="row" spacing={1} alignItems="center" justifyContent={{ xs: 'center', md: 'flex-start' }}>
               <VisibilityOffIcon color="primary" fontSize="small" />

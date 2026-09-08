@@ -14,7 +14,7 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import mongoose from 'mongoose';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
@@ -47,6 +47,15 @@ const PUBLIC_PATHS = [
   '/api/v1/store/promotions',
   '/api/v1/store/banners',
 ];
+/** A published ObjectId. Ids are hex, so any short digit run can occur inside one by chance. */
+const HEX_ID = /^[0-9a-f]{24}$/;
+/** Every primitive in a payload, flattened, so an internal value can be matched exactly. */
+function jsonValues(node: unknown, found: unknown[] = []): unknown[] {
+  if (Array.isArray(node)) for (const item of node) jsonValues(item, found);
+  else if (node && typeof node === 'object') for (const item of Object.values(node)) jsonValues(item, found);
+  else found.push(node);
+  return found;
+}
 test('the public storefront serves eligible content only and never leaks internal records', { concurrency: false }, async () => {
   const mongo = await memory();
   await mongoose.connect(mongo.getUri());
@@ -268,11 +277,11 @@ test('the public storefront serves eligible content only and never leaks interna
       assert.equal(response.body.error.code, 'VALIDATION_ERROR', path);
     }
     /* ------------ §62 nothing internal reaches any public payload */
-    const payloads: Array<[string, string]> = [];
+    const payloads: Array<[string, string, unknown]> = [];
     for (const path of PUBLIC_PATHS) {
       const response = await request(app).get(path);
       assert.equal(response.status, 200, path);
-      payloads.push([path, JSON.stringify(response.body)]);
+      payloads.push([path, JSON.stringify(response.body), response.body]);
     }
     /* Values and field names of records that really exist in this database. */
     const forbidden = [
@@ -283,7 +292,6 @@ test('the public storefront serves eligible content only and never leaks interna
       'Karachi Wholesale Traders',
       'KWT-INTERNAL',
       'SUP-SKU-4237',
-      '4237',
       'OEM Handset',
       'Wholesale Markup Rule',
       'markupType',
@@ -292,7 +300,6 @@ test('the public storefront serves eligible content only and never leaks interna
       'jobNumber',
       'supplier-feed.csv',
       'costPrice',
-      '987654',
       'sourceType',
       'SUPPLIER_CSV',
       'fulfillmentType',
@@ -322,8 +329,22 @@ test('the public storefront serves eligible content only and never leaks interna
       '_id',
       '__v',
     ];
-    for (const [path, body] of payloads) {
+    /**
+     * The internal money values of those same records: `supplierCost` and `costPrice`. These are
+     * checked against the parsed payload instead of the raw JSON text, because a short digit run
+     * such as `4237` also occurs by chance inside the 24-character hex ids the storefront
+     * legitimately publishes, which made a raw substring scan fail at random. Matching parsed
+     * values covers a leak as a number, as a string, and as part of a formatted string, and the
+     * only shape exempted is a bare ObjectId, which cannot be a money value.
+     */
+    const forbiddenValues = [4237, 987654];
+    for (const [path, body, parsed] of payloads) {
       for (const token of forbidden) assert.ok(!body.includes(token), `${path} exposed ${token}`);
+      const values = jsonValues(parsed);
+      for (const value of forbiddenValues) {
+        const leaked = values.some(entry => entry === value || (typeof entry === 'string' && !HEX_ID.test(entry) && entry.includes(String(value))));
+        assert.ok(!leaked, `${path} exposed ${value}`);
+      }
       const lower = body.toLowerCase();
       for (const token of [
         'secret',

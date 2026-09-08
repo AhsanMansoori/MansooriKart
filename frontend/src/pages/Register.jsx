@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 import { useNotifier } from '../context/NotificationProvider';
 import { persistAccessToken } from '../services/authSession';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 function Register() {
   const [name, setName] = useState('');
@@ -43,7 +44,7 @@ function Register() {
         setError(errorMessages);
         notify({ severity: 'error', message: errorMessages });
       } else {
-        const message = err.response?.data?.msg || 'Registration failed';
+        const message = err.normalizedMessage || err.response?.data?.error?.message || err.response?.data?.msg || 'Registration failed';
         setError(message);
         notify({ severity: 'error', message });
       }
@@ -58,6 +59,12 @@ function Register() {
 
   const handleToggleConfirmPasswordVisibility = () => {
     setShowConfirmPassword(prev => !prev);
+  };
+
+  // Signing up with Google creates the account on the API side, so there is nothing left to
+  // collect here — the session token is already stored and the shopper goes straight home.
+  const handleGoogleSuccess = () => {
+    navigate('/', { replace: true });
   };
 
   return (
@@ -130,6 +137,8 @@ function Register() {
             )}
           </Box>
         </form>
+
+        <GoogleSignInButton text="signup_with" onSuccess={handleGoogleSuccess} />
 
         <Box sx={{ mt: 2, textAlign: 'center' }}>
           <Typography variant="body2">

@@ -37,9 +37,28 @@ export interface EmailMessage {
   data: OrderConfirmationContent;
 }
 
+/**
+ * Password reset delivery content.
+ *
+ * `resetUrl` carries a single-use reset token, so it is treated as credential material: it
+ * reaches the adapter and nothing else. It is never logged, never recorded in a failure
+ * entry and never returned by an API (§33).
+ */
+export interface PasswordResetContent {
+  email: string;
+  resetUrl: string;
+}
+
+export interface PasswordResetMessage {
+  to: string | null;
+  subject: string;
+  template: 'PASSWORD_RESET';
+  data: PasswordResetContent;
+}
+
 export interface EmailAdapter {
   name: string;
-  send(message: EmailMessage): Promise<void>;
+  send(message: EmailMessage | PasswordResetMessage): Promise<void>;
 }
 
 export interface EmailFailure {
@@ -53,7 +72,14 @@ export interface EmailFailure {
 const queueOnlyAdapter: EmailAdapter = {
   name: 'queue-only',
   async send(message) {
-    console.info('Order confirmation email queued for provider delivery', { orderNumber: message.data.orderNumber, itemCount: message.data.items.length });
+    if (message.template === 'PASSWORD_RESET') {
+      console.info('Password reset email delivery deferred: no provider configured', { template: message.template });
+      return;
+    }
+    console.info('Order confirmation email delivery deferred: no provider configured', {
+      orderNumber: message.data.orderNumber,
+      itemCount: message.data.items.length,
+    });
   },
 };
 
@@ -76,6 +102,25 @@ export function clearEmailFailures(): void {
 /** Lets callers (and tests) await in-flight post-commit deliveries without blocking checkout. */
 export async function flushEmailDeliveries(): Promise<void> {
   await Promise.allSettled([...inFlight]);
+}
+
+/**
+ * Attempts password reset delivery through the configured adapter.
+ *
+ * Never throws: `POST /api/v1/auth/forgot-password` answers with the same generic message
+ * whether or not an account exists and whether or not delivery succeeded, so a provider
+ * outage must not become an account-enumeration oracle. The warning on failure names the
+ * adapter only — no address, no token, no URL.
+ */
+export async function sendPasswordReset(content: PasswordResetContent): Promise<{ delivered: boolean }> {
+  const active = adapter;
+  try {
+    await active.send({ to: content.email, subject: 'Reset your MansooriKart password', template: 'PASSWORD_RESET', data: content });
+    return { delivered: active !== queueOnlyAdapter };
+  } catch {
+    console.warn('Password reset email delivery failed', { adapter: active.name });
+    return { delivered: false };
+  }
 }
 
 function summariseAddress(address: Record<string, unknown> | null | undefined): string {
@@ -133,12 +178,12 @@ export async function sendOrderConfirmation(order: Record<string, any>): Promise
         template: 'ORDER_CONFIRMATION',
         data: content,
       });
-      return { delivered: true };
-    } catch (error) {
+      return { delivered: active !== queueOnlyAdapter };
+    } catch {
       failures.push({
         orderNumber: String(order['orderNumber'] ?? ''),
         adapter: active.name,
-        reason: error instanceof Error ? error.message : 'Unknown email delivery failure',
+        reason: 'Provider delivery failed.',
         at: new Date(),
       });
       if (failures.length > 50) failures.splice(0, failures.length - 50);

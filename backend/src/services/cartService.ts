@@ -1,3 +1,7 @@
+import { withAvailability } from './productAvailability.js';
+import crypto from 'node:crypto';
+import { atomic } from './transaction.js';
+import { CartSync } from '../models/cartSync.js';
 import { BLOCKING_SUPPLIER_AVAILABILITY } from '../config/dropshipping.js';
 import { Cart } from '../models/cart.js';
 import { Product } from '../models/product.js';
@@ -32,7 +36,8 @@ async function loadProduct(productId: string) {
  */
 async function assertAvailable(product: any, quantity: number): Promise<void> {
   if (product.fulfillmentType !== 'DROPSHIP') {
-    if (quantity > product.stock) throw new CartError('INSUFFICIENT_STOCK', 'Requested quantity is not available.');
+    if (quantity > (await withAvailability([product]))[0].publicAvailability.availableStock)
+      throw new CartError('INSUFFICIENT_STOCK', 'Requested quantity is not available.');
     return;
   }
   const sources = await SupplierCatalogItem.find({ product: product._id, isActive: true }).select('supplierAvailability').lean();
@@ -53,10 +58,11 @@ async function assertAvailable(product: any, quantity: number): Promise<void> {
  */
 export async function getCart(userId: string) {
   const cart = await Cart.findOne({ user: userId }).populate('items.product').lean();
+  const enriched = await withAvailability((cart?.items ?? []).map((item: any) => item.product).filter(Boolean));
   const items = (cart?.items || [])
     .filter((item: any) => item.product)
     .map((item: any) => ({
-      product: { _id: item.product._id, ...serialize.product(item.product) },
+      product: { _id: item.product._id, ...serialize.product(enriched.find((product: any) => String(product._id) === String(item.product._id))) },
       quantity: item.quantity,
       unitPrice: item.product.price,
       lineSubtotal: Number((item.product.price * item.quantity).toFixed(2)),
@@ -64,7 +70,7 @@ export async function getCart(userId: string) {
   return { items, subtotal: Number(items.reduce((sum: number, item: any) => sum + item.lineSubtotal, 0).toFixed(2)) };
 }
 
-export async function addCartItem(userId: string, productId: string, quantity: number) {
+async function addCartItemImpl(userId: string, productId: string, quantity: number) {
   const product = await loadProduct(productId);
   let cart = await Cart.findOne({ user: userId });
   if (!cart) cart = new Cart({ user: userId, items: [] });
@@ -77,7 +83,7 @@ export async function addCartItem(userId: string, productId: string, quantity: n
   return getCart(userId);
 }
 
-export async function updateCartItem(userId: string, productId: string, quantity: number) {
+async function updateCartItemImpl(userId: string, productId: string, quantity: number) {
   const product = await loadProduct(productId);
   await assertAvailable(product, quantity);
   const cart = await Cart.findOne({ user: userId });
@@ -88,7 +94,7 @@ export async function updateCartItem(userId: string, productId: string, quantity
   return getCart(userId);
 }
 
-export async function removeCartItem(userId: string, productId: string) {
+async function removeCartItemImpl(userId: string, productId: string) {
   const cart = await Cart.findOne({ user: userId });
   if (!cart || !cart.items.some((item: any) => String(item.product) === productId)) throw new CartError('CART_ITEM_NOT_FOUND', 'Cart item not found.');
   cart.items = cart.items.filter((item: any) => String(item.product) !== productId);
@@ -96,12 +102,12 @@ export async function removeCartItem(userId: string, productId: string) {
   return getCart(userId);
 }
 
-export async function clearCart(userId: string) {
+async function clearCartImpl(userId: string) {
   await Cart.findOneAndUpdate({ user: userId }, { $set: { items: [] } });
   return { cleared: true };
 }
 
-export async function mergeGuestCart(userId: string, incoming: Array<{ productId: string; quantity: number }>) {
+async function mergeGuestCartImpl(userId: string, incoming: Array<{ productId: string; quantity: number }>) {
   const quantities = new Map<string, number>();
   incoming.forEach(item => quantities.set(item.productId, (quantities.get(item.productId) || 0) + item.quantity));
   const issues: Array<{ productId: string; code: string }> = [];
@@ -115,3 +121,40 @@ export async function mergeGuestCart(userId: string, incoming: Array<{ productId
   }
   return { ...(await getCart(userId)), issues };
 }
+
+export const addCartItem = (...args: Parameters<typeof addCartItemImpl>) => atomic(() => addCartItemImpl(...args));
+
+export const updateCartItem = (...args: Parameters<typeof updateCartItemImpl>) => atomic(() => updateCartItemImpl(...args));
+
+export const removeCartItem = (...args: Parameters<typeof removeCartItemImpl>) => atomic(() => removeCartItemImpl(...args));
+
+export const clearCart = (...args: Parameters<typeof clearCartImpl>) => atomic(() => clearCartImpl(...args));
+
+export const mergeGuestCart = (...args: Parameters<typeof mergeGuestCartImpl>) => atomic(() => mergeGuestCartImpl(...args));
+
+/** Max-quantity union preserves other devices' lines; a durable key prevents replay resurrection. */
+export const syncCart = (userId: string, incoming: Array<{ productId: string; quantity: number }>, key: string) =>
+  atomic(async () => {
+    const canonical = [...incoming].sort((a, b) => a.productId.localeCompare(b.productId));
+    if (new Set(canonical.map(item => item.productId)).size !== canonical.length) throw new CartError('CART_ITEMS_DUPLICATE', 'Cart items must be unique.');
+    const fingerprint = crypto.createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+    const replay = await CartSync.findOne({ user: userId, key });
+    if (replay) {
+      if (replay.fingerprint !== fingerprint) throw new CartError('IDEMPOTENCY_CONFLICT', 'This cart key belongs to a different selection.');
+      return getCart(userId);
+    }
+    let cart = await Cart.findOne({ user: userId });
+    if (!cart) cart = new Cart({ user: userId, items: [] });
+    for (const item of canonical) {
+      const product = await loadProduct(item.productId);
+      const existing = cart.items.find((line: any) => String(line.product) === item.productId);
+      const quantity = Math.max(existing?.quantity ?? 0, item.quantity);
+      await assertAvailable(product, quantity);
+      if (existing) existing.quantity = quantity;
+      else cart.items.push({ product: product._id, quantity });
+    }
+    if (cart.items.length > 50) throw new CartError('CART_LIMIT', 'A cart may contain at most 50 products.');
+    await cart.save();
+    await CartSync.create({ user: userId, key, fingerprint });
+    return getCart(userId);
+  });

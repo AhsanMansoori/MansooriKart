@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import { getConfig, type BackendConfig } from './config/env.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { requestContext } from './middleware/request-context.js';
-import authRoutes from './routes/v1/auth.js';
+import { createAuthRouter } from './routes/v1/auth.js';
 import catalogRoutes from './routes/v1/catalog.js';
 import meRoutes from './routes/v1/me.js';
 import cartRoutes from './routes/v1/cart.js';
@@ -33,6 +33,8 @@ import adminMarketingRoutes from './routes/v1/adminMarketing.js';
 import adminCmsRoutes from './routes/v1/adminCms.js';
 import adminSettingsRoutes from './routes/v1/adminSettings.js';
 import storefrontRoutes from './routes/v1/storefront.js';
+import { getStoreConfiguration, isMaintenanceMode } from './services/storeConfigService.js';
+import { sendFailure } from './utils/api-response.js';
 
 /**
  * Clean TypeScript composition root. Route families are ported here incrementally;
@@ -40,7 +42,9 @@ import storefrontRoutes from './routes/v1/storefront.js';
  */
 export function createApp(config: BackendConfig = getConfig()): express.Express {
   const app = express();
-  const allowedOrigins = new Set([config.frontendUrl, ...config.allowedOrigins, 'http://localhost:3000', 'http://localhost:5173'].filter(Boolean));
+  // `config.allowedOrigins` is already the validated, normalised allowlist: the frontend
+  // origin, every configured origin, and the local dev servers outside production (§16).
+  const allowedOrigins = new Set(config.allowedOrigins);
 
   app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({ origin: (origin, callback) => callback(null, !origin || allowedOrigins.has(origin)), credentials: false }));
@@ -51,7 +55,33 @@ export function createApp(config: BackendConfig = getConfig()): express.Express 
   app.get('/health', (_request, response) => response.status(200).json({ status: 'ok' }));
   app.get('/api/v1/health', (_request, response) => response.status(200).json({ success: true, data: { status: 'ok' } }));
 
-  app.use('/api/v1/auth', authRoutes);
+  // Maintenance keeps authentication, health, admin, configuration and cart reads available.
+  // Store browsing, cart writes and checkout are closed with one consistent 503 response.
+  app.use('/api/v1', async (request, response, next) => {
+    const path = request.path;
+    const alwaysOpen = path === '/health' || path.startsWith('/auth/') || path.startsWith('/admin/') || path === '/store/config';
+    const cartRead = path === '/cart' && request.method === 'GET';
+    const blocked =
+      path.startsWith('/products') ||
+      path.startsWith('/categories') ||
+      path.startsWith('/brands') ||
+      path.startsWith('/store/') ||
+      path.startsWith('/checkout') ||
+      (path.startsWith('/cart') && !cartRead);
+    if (alwaysOpen || cartRead || !blocked) return next();
+    try {
+      const store = await getStoreConfiguration();
+      return isMaintenanceMode(store)
+        ? sendFailure(response, 503, 'STORE_MAINTENANCE', String(store.maintenanceMessage ?? 'The store is temporarily unavailable.'), request.requestId)
+        : next();
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  // The auth router owns rate-limit buckets, so it is built with the validated config here
+  // rather than at import time (§17).
+  app.use('/api/v1/auth', createAuthRouter(config));
   app.use('/api/v1/me', meRoutes);
   app.use('/api/v1/cart', cartRoutes);
   app.use('/api/v1/wishlist', wishlistRoutes);

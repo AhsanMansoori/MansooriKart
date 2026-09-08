@@ -1,3 +1,4 @@
+import { withAvailability } from './productAvailability.js';
 import { Product } from '../models/product.js';
 import { Wishlist } from '../models/wishlist.js';
 import * as serialize from '../serializers/index.js';
@@ -20,7 +21,7 @@ const active = { $or: [{ status: 'ACTIVE' }, { status: { $exists: false } }] };
 export async function getWishlist(userId: string) {
   const wishlist = await Wishlist.findOne({ user: userId }).populate('products').lean();
   return {
-    products: (wishlist?.products || []).filter(Boolean).map((item: any) => ({ _id: item._id, ...serialize.product(item) })),
+    products: (await withAvailability((wishlist?.products || []).filter(Boolean))).map((item: any) => ({ _id: item._id, ...serialize.product(item) })),
   };
 }
 export async function addWishlistItem(userId: string, productId: string) {

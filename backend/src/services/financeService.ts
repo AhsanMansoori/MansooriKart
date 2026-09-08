@@ -60,7 +60,13 @@ export function resolveRange(input: { range?: string | undefined; from?: Date | 
  * *and* its cash has been collected. Unpaid COD and cancelled orders therefore
  * never contribute, no matter how far the order travelled.
  */
-export const REALIZED_ORDER = { orderStatus: 'DELIVERED', paymentStatus: 'PAID' } as const;
+export const REALIZED_ORDER = {
+  orderStatus: { $in: ['DELIVERED', 'RETURN_REQUESTED', 'RETURN_APPROVED', 'RETURN_REJECTED', 'RETURNED'] },
+  paymentStatus: { $in: ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'] },
+};
+export const REALIZED_EXPRESSION = {
+  $and: [{ $in: ['$orderStatus', REALIZED_ORDER.orderStatus.$in] }, { $in: ['$paymentStatus', REALIZED_ORDER.paymentStatus.$in] }],
+};
 
 /** Refund value counts unless the refund itself failed, matching the sales dashboard. */
 export const COUNTED_REFUND = { status: { $ne: 'FAILED' } } as const;
@@ -209,16 +215,12 @@ export async function revenueByDate(range: Range) {
         grossSales: { $sum: '$total' },
         realizedRevenue: {
           $sum: {
-            $cond: [{ $and: [{ $eq: ['$orderStatus', REALIZED_ORDER.orderStatus] }, { $eq: ['$paymentStatus', REALIZED_ORDER.paymentStatus] }] }, '$total', 0],
+            $cond: [REALIZED_EXPRESSION, '$total', 0],
           },
         },
         costOfGoodsSold: {
           $sum: {
-            $cond: [
-              { $and: [{ $eq: ['$orderStatus', REALIZED_ORDER.orderStatus] }, { $eq: ['$paymentStatus', REALIZED_ORDER.paymentStatus] }] },
-              { $sum: { $map: { input: { $ifNull: ['$items', []] }, as: 'i', in: { $ifNull: ['$$i.lineCost', 0] } } } },
-              0,
-            ],
+            $cond: [REALIZED_EXPRESSION, { $sum: { $map: { input: { $ifNull: ['$items', []] }, as: 'i', in: { $ifNull: ['$$i.lineCost', 0] } } } }, 0],
           },
         },
       },
@@ -346,10 +348,13 @@ export async function orderPaymentPosture(range: Range) {
   const [byPayment, unpaidDelivered, paid] = await Promise.all([
     Order.aggregate([{ $match: window }, { $group: { _id: '$paymentStatus', count: { $sum: 1 }, value: { $sum: '$total' } } }, { $sort: { _id: 1 } }]),
     Order.aggregate([
-      { $match: { ...window, paymentStatus: { $ne: 'PAID' }, orderStatus: { $in: ['SHIPPED', 'DELIVERED'] } } },
+      { $match: { ...window, paymentStatus: { $nin: REALIZED_ORDER.paymentStatus.$in }, orderStatus: { $in: ['SHIPPED', 'DELIVERED'] } } },
       { $group: { _id: null, count: { $sum: 1 }, value: { $sum: '$total' } } },
     ]),
-    Order.aggregate([{ $match: { ...window, paymentStatus: 'PAID' } }, { $group: { _id: null, count: { $sum: 1 }, value: { $sum: '$total' } } }]),
+    Order.aggregate([
+      { $match: { ...window, paymentStatus: REALIZED_ORDER.paymentStatus } },
+      { $group: { _id: null, count: { $sum: 1 }, value: { $sum: '$total' } } },
+    ]),
   ]);
   const unpaid = byPayment.filter((row: any) => row._id !== 'PAID');
   return {

@@ -1,16 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, withRetry } from '@/services/apiClient';
+import { fetchAllProducts } from '@/services/catalog';
 import type { Product } from '@/types/domain';
 
 export const productQueryKey = ['products'] as const;
 
+/**
+ * The catalog as a react-query resource.
+ *
+ * The request itself lives in `services/catalog`, which is shared with the components that
+ * still fetch directly, so paging and view-model adaptation have exactly one implementation.
+ */
 export function useProductsQuery() {
-  return useQuery({
-    queryKey: productQueryKey,
-    queryFn: async (): Promise<Product[]> => {
-      const { data } = await withRetry(() => apiClient.get('products'));
-      if (!Array.isArray(data)) throw new Error('Unexpected products response.');
-      return data.map(product => ({ ...product, _id: product._id || product.id, id: product._id || product.id }));
-    },
-  });
+  return useQuery({ queryKey: productQueryKey, queryFn: (): Promise<Product[]> => fetchAllProducts() });
 }

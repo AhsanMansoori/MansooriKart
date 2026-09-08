@@ -341,7 +341,6 @@ router.post('/inventory/transfers', validate(transfer), async (r, s, n) => {
     if (replay) return sendSuccess(s, replay, 201);
     const x = await transferStock({ ...r.body, actor: r.auth!.userId, requestId: r.requestId, idempotencyKey: key });
     if ((x as any).__replayed) return sendSuccess(s, x, 201);
-    await audit(r, 'INVENTORY_TRANSFERRED', 'InventoryTransfer', String(x._id), { productId: r.body.productId, quantity: r.body.quantity });
     return sendSuccess(s, x, 201);
   } catch (e) {
     return fail(e, r, s, n);

@@ -25,7 +25,7 @@ exports[`Privacy snapshot matches the rendered markup 1`] = `
       <p
         class="MuiTypography-root MuiTypography-body1 css-81jeky-MuiTypography-root"
       >
-        We collect only what we need to ship exceptional products and continuously improve the Fusion experience. The details below outline exactly how it works.
+        We collect only what we need to ship your order and keep your account working. The details below outline exactly how it works.
       </p>
       <span
         class="MuiTypography-root MuiTypography-caption css-ol7wxs-MuiTypography-root"
@@ -112,7 +112,7 @@ exports[`Privacy snapshot matches the rendered markup 1`] = `
             <p
               class="MuiTypography-root MuiTypography-body2 css-r40f8v-MuiTypography-root"
             >
-              Account details (name, email, password hash), shipping addresses, order history, and optional preferences when you opt into personalization.
+              Account details (name, email, and either a password hash or a Google sign-in identifier), shipping addresses, and order history.
             </p>
           </div>
           <div
@@ -162,7 +162,7 @@ exports[`Privacy snapshot matches the rendered markup 1`] = `
             <p
               class="MuiTypography-root MuiTypography-body2 css-r40f8v-MuiTypography-root"
             >
-              Export or delete your account anytime from the profile dashboard. Marketing preferences can be adjusted at the bottom of every email.
+              Update your profile details and saved addresses from your account at any time. To export or delete your account, send us a data request and we will handle it for you.
             </p>
           </div>
         </div>
@@ -180,7 +180,7 @@ exports[`Privacy snapshot matches the rendered markup 1`] = `
           <p
             class="MuiTypography-root MuiTypography-body2 css-r40f8v-MuiTypography-root"
           >
-            Trusted partners such as Stripe, Pinecone, and Google Cloud act as processors under strict data processing agreements. Only the bare minimum required to power payments, recommendations, or analytics is shared.
+            Sign-in with Google is handled by Google as an identity provider, and orders are paid on delivery rather than through a third-party payment processor. Any processor we rely on is bound by a data processing agreement and receives only the minimum required to do its job.
           </p>
         </div>
         <div
@@ -194,7 +194,7 @@ exports[`Privacy snapshot matches the rendered markup 1`] = `
           <p
             class="MuiTypography-root MuiTypography-body2 css-r40f8v-MuiTypography-root"
           >
-            Email privacy@fusionelectronics.io with the subject “Data Request” and our privacy desk will validate your identity before fulfilling the request within 30 days.
+            Send us a request through the Support Centre with “Data Request” as the topic. We will validate your identity before fulfilling the request within 30 days.
           </p>
         </div>
         <div
@@ -203,7 +203,7 @@ exports[`Privacy snapshot matches the rendered markup 1`] = `
           <p
             class="MuiTypography-root MuiTypography-body2 css-r40f8v-MuiTypography-root"
           >
-            Questions about this policy? Reach out through the Support Centre or email privacy@fusionelectronics.io so we can help.
+            Questions about this policy? Reach out through the Support Centre so we can help.
           </p>
           <div
             class="MuiStack-root css-o0avyz-MuiStack-root"

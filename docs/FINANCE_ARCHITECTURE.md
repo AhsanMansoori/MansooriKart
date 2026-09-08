@@ -3,8 +3,7 @@
 Phase F, Part A: operating expenses, the finance dashboard, finance analytics, and the
 management profit-and-loss summary. Everything below describes the implemented `/api/v1`
 runtime (`backend/src/models/expense.ts`, `backend/src/services/financeService.ts`,
-`backend/src/routes/v1/adminFinance.ts`). The frozen legacy `/api/*` runtime is untouched,
-and no frontend was built in this phase.
+`backend/src/routes/v1/adminFinance.ts`). The removed legacy `/api/*` runtime has no active consumer.
 
 ## 0. What this is, and what it deliberately is not
 
@@ -327,7 +326,7 @@ duplicated into compound variants no query needs.
 ## 13. Endpoints
 
 All routes are `/api/v1/admin/...`, all require `SUPER_ADMIN`, and all are additive — the
-legacy `/api/*` surface is frozen and unchanged.
+legacy `/api/*` surface is removed.
 
 | Method  | Path                   | Purpose                                          |
 | ------- | ---------------------- | ------------------------------------------------ |

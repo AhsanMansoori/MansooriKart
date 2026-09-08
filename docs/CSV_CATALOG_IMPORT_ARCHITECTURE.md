@@ -3,8 +3,7 @@
 Phase G: how a supplier's product list becomes reviewable MansooriKart catalogue data. Everything
 below describes the implemented `/api/v1` runtime (`backend/src/services/catalogImportService.ts`,
 `backend/src/routes/v1/adminCatalogImports.ts`, `backend/src/utils/csv.ts`,
-`backend/src/config/dropshipping.ts`). The frozen legacy `/api/*` runtime is untouched, and no
-frontend was built in this phase.
+`backend/src/config/dropshipping.ts`). The removed legacy `/api/*` runtime has no active consumer.
 
 Companion documents: [DROPSHIPPING_ARCHITECTURE.md](./DROPSHIPPING_ARCHITECTURE.md) for fulfilment
 and publication, [PRICING_ARCHITECTURE.md](./PRICING_ARCHITECTURE.md) for how a selling price is

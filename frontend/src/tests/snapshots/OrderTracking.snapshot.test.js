@@ -2,6 +2,8 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
+// Tracking is an authenticated, id-addressed API call now. jsdom starts with no stored token, so
+// this renders the sign-in prompt a fresh browser sees; the request seam is stubbed out anyway.
 jest.mock('../../services/apiClient', () => ({
   apiClient: {
     get: () => new Promise(() => {}),
@@ -9,6 +11,7 @@ jest.mock('../../services/apiClient', () => ({
     put: () => new Promise(() => {}),
     delete: () => new Promise(() => {}),
   },
+  unwrap: response => response?.data?.data,
   withRetry: () => new Promise(() => {}),
   API_BASE_URL: 'http://test',
 }));

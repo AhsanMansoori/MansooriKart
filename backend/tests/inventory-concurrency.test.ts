@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import { InventoryMovement } from '../src/models/inventoryMovement.js';
 import { Product } from '../src/models/product.js';
 import { adjustStock } from '../src/services/inventoryService.js';

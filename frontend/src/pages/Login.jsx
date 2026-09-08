@@ -4,6 +4,7 @@ import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { apiClient } from '../services/apiClient';
 import { useNotifier } from '../context/NotificationProvider';
 import { persistAccessToken } from '../services/authSession';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -45,6 +46,14 @@ function Login() {
   // Toggle password visibility
   const handleTogglePasswordVisibility = () => {
     setShowPassword(prev => !prev);
+  };
+
+  // A Google sign-in ends in the same place a local one does: the session token is already
+  // stored by the time this runs, so the page only has to move the shopper along.
+  const handleGoogleSuccess = () => {
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 400);
   };
 
   return (
@@ -97,6 +106,8 @@ function Login() {
             )}
           </Box>
         </form>
+
+        <GoogleSignInButton text="signin_with" onSuccess={handleGoogleSuccess} />
 
         <Box sx={{ mt: 2, textAlign: 'center' }}>
           <Typography variant="body2">

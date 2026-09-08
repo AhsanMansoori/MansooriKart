@@ -628,17 +628,17 @@ exports[`Home snapshot matches the rendered markup (loaded, empty products) 1`] 
           <span
             class="MuiTypography-root MuiTypography-body1 css-fll3ht-MuiTypography-root"
           >
-            For you
+            Your history
           </span>
           <h4
             class="MuiTypography-root MuiTypography-h4 css-1a94ck3-MuiTypography-root"
           >
-            Personalized For You
+            Recently Viewed
           </h4>
           <p
             class="MuiTypography-root MuiTypography-body1 css-1ts76t1-MuiTypography-root"
           >
-            Based on your recent views, we think you might like these products.
+            The products you opened most recently, kept in this browser only.
           </p>
         </div>
         <div
@@ -666,9 +666,9 @@ exports[`Home snapshot matches the rendered markup (loaded, empty products) 1`] 
             <div
               class="MuiTypography-root MuiTypography-body1 MuiTypography-gutterBottom MuiAlertTitle-root css-yslrua-MuiTypography-root-MuiAlertTitle-root"
             >
-              No recommendations yet
+              Nothing here yet
             </div>
-            Browse a few products so we can learn your taste and surface better picks.
+            Products you open are kept here so you can pick up where you left off.
             <div
               class="MuiBox-root css-164r41r"
             >

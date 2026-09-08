@@ -1,7 +1,9 @@
+import { REALIZED_ORDER } from '../../services/financeService.js';
 import express from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { CONTENT_LIMITS } from '../../config/storefront.js';
+import { getConfig } from '../../config/env.js';
 import { requireAuth, requireSuperAdmin } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
 import { AuditLog } from '../../models/auditLog.js';
@@ -65,7 +67,7 @@ router.get('/dashboard', async (_request, response, next) => {
       Product.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
       Order.aggregate([{ $group: { _id: '$orderStatus', count: { $sum: 1 } } }]),
       User.countDocuments({ role: 'CUSTOMER' }),
-      Order.aggregate([{ $match: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
+      Order.aggregate([{ $match: { ...REALIZED_ORDER } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
       Order.find()
         .sort({ createdAt: -1 })
         .limit(10)
@@ -103,7 +105,7 @@ router.get('/dashboard/sales', validate(rangeSchema, 'query'), async (request, r
   try {
     const start = rangeStart((request.query as any).range);
     const data = await Order.aggregate([
-      { $match: { createdAt: { $gte: start }, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } },
+      { $match: { createdAt: { $gte: start }, ...REALIZED_ORDER } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]);
@@ -206,24 +208,24 @@ router.get('/audit-logs/:id', async (request, response, next) => {
  * Operational health for the Super Admin console.
  *
  * Everything published here is a status, a count or a label. There is deliberately no
- * connection string, no environment dump, no secret and no stack trace: `environment` is
- * narrowed to a known label rather than echoed, and `version` comes from an explicit
- * `APP_VERSION` rather than from reading the filesystem (§40).
+ * connection string, no environment dump, no secret and no stack trace: `environment` and
+ * `version` come from the validated configuration (§13), which narrows them to a known
+ * label and an explicit deployment tag rather than echoing raw environment values (§32).
  */
 router.get('/system/health', async (_request, response, next) => {
   try {
     const readyState = mongoose.connection.readyState;
     const databaseConnected = readyState === 1;
     const config = databaseConnected ? await getStoreConfiguration().catch(() => null) : null;
-    const environment = ['development', 'test', 'production'].includes(String(process.env.NODE_ENV)) ? String(process.env.NODE_ENV) : 'development';
+    const { nodeEnv, appVersion } = getConfig();
     return sendSuccess(response, {
       status: databaseConnected ? 'ok' : 'degraded',
       api: 'ok',
       database: databaseConnected ? 'connected' : 'disconnected',
       databaseState: ['disconnected', 'connected', 'connecting', 'disconnecting'][readyState] ?? 'unknown',
       uptimeSeconds: Math.floor(process.uptime()),
-      environment,
-      version: process.env.APP_VERSION || 'unknown',
+      environment: nodeEnv,
+      version: appVersion,
       timestamp: new Date().toISOString(),
       store: { configured: Boolean(config), maintenanceMode: Boolean(config?.maintenanceMode) },
       checks: [

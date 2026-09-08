@@ -1,6 +1,6 @@
 # MansooriKart Marketing Architecture
 
-Phase H added the marketing and merchandising layer to the versioned backend: a Super Admin management API around the coupon system that already existed, a lightweight promotion domain, storefront banners, and the curated homepage. The implementation is `backend/src/routes/v1/adminCoupons.ts`, `backend/src/routes/v1/adminMarketing.ts` and `backend/src/routes/v1/storefront.ts` over `backend/src/services/marketingService.ts` and `backend/src/services/storefrontService.ts`, with `backend/src/models/promotion.ts`, `backend/src/models/banner.ts` and `backend/src/models/homepageConfiguration.ts` as the new persistence, `backend/src/serializers/marketingAdmin.ts` and `backend/src/serializers/storefront.ts` as the two projections, and every enumeration and numeric bound centralised in `backend/src/config/storefront.ts`. The legacy `/api/*` runtime is untouched, and no frontend was built in this phase.
+The marketing and merchandising layer provides Super Admin coupon, promotion, banner, and curated-homepage APIs. It uses separate public/admin projections and centralized bounds in `backend/src/config/storefront.ts`. The removed legacy `/api/*` runtime has no active consumer.
 
 Companion documents: [CMS_ARCHITECTURE.md](./CMS_ARCHITECTURE.md), [STORE_CONFIGURATION_ARCHITECTURE.md](./STORE_CONFIGURATION_ARCHITECTURE.md), [SYSTEM_OPERATIONS_ARCHITECTURE.md](./SYSTEM_OPERATIONS_ARCHITECTURE.md), [API_CONTRACT.md](./API_CONTRACT.md), [API_INVENTORY.md](./API_INVENTORY.md).
 

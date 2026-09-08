@@ -1,6 +1,6 @@
 # MansooriKart Store Configuration Architecture
 
-Phase H made the store's own settings editable: identity, contact details, social links, SEO metadata, shipping, tax, invoice presentation, transactional-email behaviour and maintenance mode. The implementation is `backend/src/routes/v1/adminSettings.ts` over `backend/src/services/storeConfigService.ts`, with `backend/src/models/storeConfiguration.ts` as the single persisted document, `backend/src/config/storefront.ts` as the defaults and bounds, and `backend/src/serializers/storefront.ts` / `marketingAdmin.ts` as the public and admin projections. `backend/src/routes/v1/storefront.ts` serves the customer-facing reads. The legacy `/api/*` runtime is untouched, and no frontend was built in this phase.
+Store settings cover identity, contact details, social links, SEO metadata, shipping, tax, invoice presentation, transactional-email preferences and maintenance mode. `backend/src/models/storeConfiguration.ts` is the singleton authority, with separate public/admin projections. The removed legacy `/api/*` runtime has no active consumer.
 
 Companion documents: [MARKETING_ARCHITECTURE.md](./MARKETING_ARCHITECTURE.md), [CMS_ARCHITECTURE.md](./CMS_ARCHITECTURE.md), [SYSTEM_OPERATIONS_ARCHITECTURE.md](./SYSTEM_OPERATIONS_ARCHITECTURE.md), [ORDERS_SALES_ARCHITECTURE.md](./ORDERS_SALES_ARCHITECTURE.md), [PRICING_ARCHITECTURE.md](./PRICING_ARCHITECTURE.md), [API_CONTRACT.md](./API_CONTRACT.md), [API_INVENTORY.md](./API_INVENTORY.md).
 

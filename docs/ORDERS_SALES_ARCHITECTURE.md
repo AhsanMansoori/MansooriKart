@@ -2,8 +2,7 @@
 
 Phase D scope: order visibility, cancellation, returns, refunds, invoices, order
 confirmation email, abandoned carts, and sales reporting. Everything below describes the
-implemented `/api/v1` runtime (`backend/src`). The frozen legacy `/api/*` runtime is
-untouched.
+implemented `/api/v1` runtime (`backend/src`). The removed legacy `/api/*` runtime has no active consumer.
 
 ## 1. Order state machine
 

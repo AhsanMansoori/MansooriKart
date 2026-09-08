@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { AuditLog } from '../src/models/auditLog.js';

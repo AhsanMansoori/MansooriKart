@@ -3,7 +3,7 @@
 Phase E, Part B: suppliers, purchase orders, goods receipt, supplier returns, and procurement
 reporting. Everything below describes the implemented `/api/v1` runtime
 (`backend/src/services/purchasingService.ts`, `backend/src/routes/v1/adminPurchasing.ts`). The
-frozen legacy `/api/*` runtime is untouched, and no frontend was built in this phase.
+removed legacy `/api/*` runtime has no active consumer.
 
 **Inventory authority is unchanged.** `InventoryBalance` remains the stock authority,
 `Product.stock` remains a service-maintained compatibility mirror, and `MAIN` / `PRIMARY`
@@ -102,7 +102,7 @@ Ordering is the whole design:
    moves.
 5. **Inventory application** of accepted units only, through `adjustStock`.
 6. **Cost-price sync** (§7).
-7. **Audit**, with full compensation if it fails (§6).
+7. **Audit**, in the same transaction (§6).
 
 ### Atomic multi-line capacity claim
 
@@ -183,31 +183,17 @@ Two independent caps make the inventory effect safe:
 plus a document; there is no supplier refund, credit note, debit note, payable adjustment, or
 expense entry anywhere in this phase.
 
-## 6. Compensation policy — no phantom inventory
+## 6. Transaction policy — no phantom inventory
 
-Every step after a successful step reverses the steps before it. `auditOrThrow` wraps the
-audit write: on any `AuditLog` failure it runs the rollback and throws
-`500 PURCHASE_RECEIPT_AUDIT_FAILED` / `PURCHASE_RETURN_AUDIT_FAILED`.
+Purchase-order state, receipt or return documents, balance and mirror changes, immutable
+movements, cost-price updates, and audit records use one MongoDB transaction. An audit or
+persistence fault aborts the whole unit and returns the applicable safe domain error. The
+database retains the exact state from before the attempt: no partial counters, document,
+stock, cost update, movement, or artificial compensating movement.
 
-For a receipt whose audit cannot be written, the rollback: reverses each applied inventory
-increment through `adjustStock`, deletes the `GoodsReceipt`, and releases the claimed line
-capacity (which recomputes the order status back down). The result, asserted in
-`backend/tests/purchasing-compensation.test.ts` against a **real** database constraint
-violation rather than a stub:
-
-- `InventoryBalance.quantityOnHand` is back to its pre-receipt value.
-- The `Product.stock` mirror is compensated too.
-- The receipt document is gone and `quantityReceived` / `quantityAccepted` are released.
-- The order status is back to what it was.
-- **The compensating reversal is recorded in the movement ledger, not hidden.** The ledger
-  retains both the `+4` application and the `-4` reversal, and nets to the correct balance.
-  Partial corruption is never silently accepted; reconciliation is always possible from the
-  ledger alone.
-- The same idempotency key succeeds normally once the fault clears.
-
-`PurchaseOrder` creation is compensated the same way (`PURCHASE_ORDER_AUDIT_FAILED` deletes
-the order). Inventory reversal itself is best-effort by necessity — if the reversal also
-fails, both attempts remain in the ledger for reconciliation rather than being discarded.
+`backend/tests/purchasing-compensation.test.ts` forces real audit-index violations against a
+single-member replica set. It proves the aborted state and then retries the same idempotency
+key successfully after the fault is removed.
 
 ## 7. Cost price policy: `LATEST_PURCHASE_COST`
 

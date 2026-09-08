@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { Address } from '../src/models/address.js';
@@ -246,7 +246,7 @@ test('invoices are immutable and ownership-scoped, PDFs render real documents, a
     assert.equal(failures.length, 1);
     assert.equal(failures[0]!.orderNumber, failedEmailOrder.orderNumber);
     assert.equal(failures[0]!.adapter, 'failing-test-adapter');
-    assert.equal(failures[0]!.reason, 'provider unavailable');
+    assert.equal(failures[0]!.reason, 'Provider delivery failed.');
     assert.ok(!JSON.stringify(failures).includes(PASSWORD_MATERIAL));
 
     // ---- Email content contract, built from the immutable order snapshot. ----

@@ -81,7 +81,7 @@ function Shop({ products, addToCart, loading, error }) {
       return sorted.filter(product => typeof product.stock === 'number' && product.stock > 0);
     }
     if (viewFilter === 'featured') {
-      return sorted.filter(product => product.isFeatured || (product.rating || 0) >= 4.5);
+      return sorted.filter(product => product.featured || (product.rating || 0) >= 4.5);
     }
     return sorted;
   }, [products, categoryFilter, sortOption, viewFilter, capitalizeCategory]);

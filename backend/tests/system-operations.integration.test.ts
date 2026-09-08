@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import mongoose from 'mongoose';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
@@ -144,8 +144,7 @@ test('health probes answer without a database and publish nothing about the depl
       if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
       else process.env.NODE_ENV = originalNodeEnv;
     }
-    assert.equal(narrowed.status, 200);
-    assert.equal(narrowed.body.data.environment, 'development');
+    assert.equal(narrowed.status, 401, 'an invalid NODE_ENV is rejected instead of silently becoming development');
     assert.ok(!JSON.stringify(narrowed.body).includes('leaked'));
     assert.ok(!JSON.stringify(narrowed.body).includes('cluster.example'));
 
@@ -155,6 +154,10 @@ test('health probes answer without a database and publish nothing about the depl
     const closed = await request(app).get('/api/v1/store/home');
     assert.equal(closed.status, 503);
     assert.equal(closed.body.error.code, 'STORE_MAINTENANCE');
+    assert.equal((await request(app).get('/api/v1/products')).status, 503, 'catalog browsing is closed');
+    assert.equal((await request(app).get('/api/v1/cart').set(auth(ct))).status, 200, 'customers may still inspect their cart');
+    assert.equal((await request(app).post('/api/v1/cart/merge').set(auth(ct)).send({ items: [] })).status, 503, 'cart writes are closed');
+    assert.equal((await request(app).post('/api/v1/checkout/preview').set(auth(ct)).send({})).status, 503, 'checkout is closed before request validation');
     const duringMaintenance = await request(app).get('/api/v1/admin/system/health').set(auth(st));
     assert.equal(duringMaintenance.status, 200);
     assert.deepEqual(duringMaintenance.body.data.store, { configured: true, maintenanceMode: true });

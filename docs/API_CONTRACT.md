@@ -4,7 +4,7 @@ All v1 endpoints return `{ "success": true, "data": ... }`; product lists also r
 
 ## Authentication
 
-The official v1 header is `Authorization: Bearer <JWT>`. Registration accepts name, email and password and always creates `CUSTOMER`. Login issues a 48-hour JWT. Forgot-password responses are generic; reset tokens are hashed, expiring and single-use.
+The official v1 header is `Authorization: Bearer <JWT>`. Registration accepts name, email and password and always creates `CUSTOMER`. Local and Google sign-in issue the same stateless JWT for 15 minutes by default and never longer than one hour. Reset tokens are hashed, expiring, atomically single-use, and reset invalidates earlier JWTs through `sessionVersion`. There is no refresh endpoint; browser logout removes local token material.
 
 ## Profile and addresses
 
@@ -18,7 +18,7 @@ Categories, brands and products are public active-only reads. Products support p
 
 ## Super Admin core and catalog
 
-All `/api/v1/admin/*` endpoints require a current `SUPER_ADMIN` Bearer token. `GET /api/v1/admin/dashboard` returns real product, order, customer, low-stock, recent-order, and realized-revenue data. Realized revenue counts only `DELIVERED` orders with `PAID` payment status; unpaid COD, cancelled, and failed orders are excluded. The bounded dashboard analytics endpoints accept only `range=7d|30d|90d`.
+All `/api/v1/admin/*` endpoints require a current `SUPER_ADMIN` Bearer token. `GET /api/v1/admin/dashboard` returns real product, order, customer, low-stock, recent-order, and realized-revenue data. Realized revenue retains collected delivered and return-stage orders through partial or full refund state; refund records are then subtracted once. Unpaid COD, cancelled, and failed orders are excluded.
 
 `GET /api/v1/admin/audit-logs` supports safe pagination and action, resource type, actor, and date filters. It serializes safe audit fields only. `GET /api/v1/admin/system/health` returns status, database connection state, uptime, environment name, and optional application version without configuration values or credentials.
 
@@ -40,17 +40,17 @@ Data and report **export** — CSV download, XLSX generation, scheduled delivery
 
 Cart and wishlist require `Authorization: Bearer <JWT>`. Cart writes accept only product IDs and positive integer quantities. Cart prices and subtotals are recalculated from current products and cart operations do not reserve or decrement stock. Guest merge has a **partial** policy: duplicate guest lines are aggregated; each infeasible item is omitted and returned with an issue code, while feasible items are merged.
 
-Coupon preview accepts only a code and recalculates the authenticated user's cart subtotal. Codes normalize to uppercase. Percentage and fixed discounts use two-decimal rounding, honour dates, enabled state, minimums, limits and maximum discount, and cannot reduce the subtotal below zero. Preview does not increment usage. `perCustomerLimit` is stored but enforcement is deferred until checkout creates persisted redemption history.
+Coupon preview accepts only a code and recalculates the authenticated user's cart subtotal. Codes normalize to uppercase. Percentage and fixed discounts use two-decimal rounding, honour dates, enabled state, minimums, limits and maximum discount, and cannot reduce the subtotal below zero. Preview does not increment usage. Checkout enforces global and per-customer limits transactionally; failure or a losing concurrent request consumes no capacity. Cancellation retains redemption history and does not restore coupon capacity.
 
-Inventory adjustments are Super Admin-only and require a non-zero integer delta and bounded reason. The inventory service performs conditional atomic decrements and records previous/new stock in `InventoryMovement`; it compensates stock if ledger persistence fails. Low-stock and out-of-stock endpoints aggregate available inventory (`quantityOnHand - quantityReserved`) across all balances for a product: low stock is `0 < available <= lowStockThreshold` (default 5), while out of stock is `available <= 0`. Real-Mongo HTTP verification covers compensation and one-unit competing-decrement cases.
+Inventory adjustments are Super Admin-only and require a non-zero integer delta and bounded reason. Balance, `Product.stock` compatibility mirror, movement, transfer and audit writes commit in one MongoDB transaction; a fault leaves none applied. Low-stock and out-of-stock endpoints aggregate available inventory (`quantityOnHand - quantityReserved`) across all balances for a product. Real replica-set tests cover persistence faults and one-unit competing-decrement cases.
 
 Super Admin coupon DELETE is a soft archive: the record remains and `enabled` becomes false. Admin inventory/coupon mutations write safe AuditLog records.
 
 ## Checkout and orders
 
-`POST /api/v1/checkout` accepts only a saved `addressId`, optional `couponCode`, and `paymentMethod: CASH_ON_DELIVERY`; an `Idempotency-Key` header is required. Items, prices, stock, totals, and order number are server-derived. COD begins `UNPAID`. Shipping and tax are now read from the store configuration on every checkout: the defaults reproduce the previous behaviour exactly — PKR 250 below discounted PKR 5,000 and free at or above it, and zero tax — and an operator may change them. Both are computed by `quoteShipping` and `computeTax` from the server's own discounted subtotal and the server-loaded address city; **no shipping or tax value is ever accepted from a client**, and a configuration change never alters an order already placed. See "Store configuration" below.
+`POST /api/v1/checkout/preview` accepts a saved address, optional coupon, COD, and selected cart quantities, then returns server-derived PKR subtotal, discount, shipping, tax, payable total, and a quote hash. `POST /api/v1/checkout` confirms that quote with an `Idempotency-Key`. Prices, availability, totals, and order numbers remain server-derived. COD begins `UNPAID`. Configuration changes never rewrite an order snapshot.
 
-Checkout revalidates and consumes coupons only after an Order persists, records per-customer redemptions, and compensates inventory on failure. Cancellation is allowed from `PENDING` and `CONFIRMED`, restores stock exactly once, and does not restore coupon eligibility. Admin transitions are `PENDING→CONFIRMED/CANCELLED`, `CONFIRMED→PROCESSING/CANCELLED`, `PROCESSING→SHIPPED`, `SHIPPED→DELIVERED`; COD payment collection is `UNPAID→PAID`.
+Checkout commits the order, coupon redemption, stock, fulfillment, selected cart quantities and audit together. Cancellation is allowed from `PENDING` and `CONFIRMED` and commits state, stock restore, supplier-cancellation intent and audit exactly once. Admin transitions are `PENDING→CONFIRMED/CANCELLED`, `CONFIRMED→PROCESSING/CANCELLED`, `PROCESSING→SHIPPED`, `SHIPPED→DELIVERED`; COD payment collection is `UNPAID→PAID`.
 
 Checkout also persists a server-generated `invoiceNumber` and fires a post-commit order confirmation email. See [ORDERS_SALES_ARCHITECTURE.md](./ORDERS_SALES_ARCHITECTURE.md) for the full state machines and invariants.
 
@@ -82,7 +82,7 @@ Order confirmation email is provider-agnostic; **no provider is integrated and n
 
 `GET /api/v1/admin/abandoned-carts` derives abandoned carts from persisted `Cart` documents with no duplicated data: at least one item and inactive past a threshold (default 24 hours, 1–2160 overridable). `estimatedValue` is recomputed from the current catalog price of `ACTIVE` products (`meta.valuation: CURRENT_CATALOG_PRICE`); a stored cart price is never authoritative. Anonymous carts are **deferred** because `Cart.user` is required and guest carts are not persistently identifiable — no anonymous identity is fabricated.
 
-`GET /api/v1/admin/sales/dashboard` accepts either `range=7d|30d|90d` or both `from` and `to`. `grossSales` sums `order.total` for all orders in range; `realizedRevenue` sums only `DELIVERED` **and** `PAID` orders, so unpaid COD and cancelled orders are never realized revenue; `refunds` sums non-`FAILED` refunds in range; `netSales` is gross minus refunds. `GET /api/v1/admin/sales/analytics` reports per-day series and status breakdown from the same aggregates.
+`GET /api/v1/admin/sales/dashboard` accepts either `range=7d|30d|90d` or both `from` and `to`. `grossSales` sums every order total; `realizedRevenue` retains collected delivered/return-stage sales across `PAID`, `PARTIALLY_REFUNDED`, and `REFUNDED`; `refunds` sums non-`FAILED` refund reservations. Net realized revenue subtracts refunds once. Unpaid COD and cancelled orders are excluded.
 
 ## Customers ERP
 
@@ -112,7 +112,7 @@ Purchase orders move `DRAFT→PENDING_APPROVAL→APPROVED` and then through rece
 
 **Only accepted received quantity increases stock**, and only through the existing inventory service (`type: PURCHASE_RECEIPT`, `referenceType: PurchaseOrder`). `InventoryBalance` remains the authority, `Product.stock` remains a synchronized mirror, and no purchasing code writes stock directly. Rejected units are recorded and never enter inventory; completeness is measured against delivered quantity (accepted + rejected).
 
-If inventory succeeds but receipt persistence or the audit write fails, the operation is fully compensated — inventory reversed, receipt document deleted, line capacity released, status recomputed — so **no phantom inventory is ever left behind**, and the compensating reversal is retained in the movement ledger rather than hidden. Failures surface as `500 PURCHASE_RECEIPT_AUDIT_FAILED` / `PURCHASE_RETURN_AUDIT_FAILED`, and the same idempotency key succeeds once the fault clears.
+Purchase-order counters, receipt/return documents, stock, cost snapshots and audit entries commit in one transaction. A persistence or audit fault leaves no partial counter, stock, document, movement, or artificial compensating movement. Failures surface as `500 PURCHASE_RECEIPT_AUDIT_FAILED` / `PURCHASE_RETURN_AUDIT_FAILED`, and the same idempotency key may succeed once the fault clears.
 
 **Purchase returns are IMPLEMENTED, not deferred.** They are eligible only for `PARTIALLY_RECEIVED`, `RECEIVED`, or `CLOSED` orders, capped per line at `quantityAccepted - quantityReturned` (`409 PURCHASE_RETURN_QUANTITY_INVALID`) and capped again by the inventory service's non-negative balance guard (`INSUFFICIENT_STOCK`, surfaced as `409`, persisting nothing). No supplier refund, credit note, payable adjustment, or financial settlement is implied or recorded.
 
@@ -142,7 +142,7 @@ COGS uses the immutable per-line snapshot (`items.unitCost`, `items.lineCost`) t
 
 **A `Payment` collection is deliberately deferred.** `Order.paymentStatus` plus the existing `Refund` collection already record everything a cash-on-delivery business can know, so a payment model would duplicate those facts without adding information. There is no payment-gateway abstraction, no provider adapter, no webhook handler, and no capture/settlement state machine — building one would pretend money moves externally when it does not. The payment provider remains **TBD / NOT CONFIRMED**, and no gateway SDK is present.
 
-Endpoints: `GET|POST /api/v1/admin/expenses`, `GET /expenses/summary`, `GET /expenses/:id`, `PATCH /expenses/:id`, `PATCH /expenses/:id/status`, `GET /finance/dashboard`, `GET /finance/analytics`, `GET /finance/profit-loss`. All are `SUPER_ADMIN`-only and additive; legacy `/api/*` is unchanged.
+Endpoints: `GET|POST /api/v1/admin/expenses`, `GET /expenses/summary`, `GET /expenses/:id`, `PATCH /expenses/:id`, `PATCH /expenses/:id/status`, `GET /finance/dashboard`, `GET /finance/analytics`, `GET /finance/profit-loss`. All are `SUPER_ADMIN`-only; the legacy `/api/*` surface is removed.
 
 ## Reporting ERP
 

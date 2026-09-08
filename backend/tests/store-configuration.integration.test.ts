@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import mongoose from 'mongoose';
 import request from 'supertest';
 import { createApp } from '../src/app.js';

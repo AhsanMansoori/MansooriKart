@@ -3,20 +3,23 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Typography, Box, Paper, Button, Stack, Divider, Chip, List, ListItem, ListItemText } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import { readLastOrder } from '../services/lastOrder';
 
-function formatDate(dateString) {
-  if (!dateString) return null;
+/**
+ * The confirmation shown straight after an order is placed.
+ *
+ * Everything here comes from the order the API returned, so the figures match what will be
+ * collected on delivery. Tracking is addressed by order id — the id is what the tracking page
+ * needs, and it is only readable by the account that placed the order.
+ */
+
+/** Order totals are published with their currency, so neither is assumed. */
+function formatMoney(amount, currency) {
+  if (typeof amount !== 'number' || Number.isNaN(amount)) return null;
   try {
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return null;
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    }).format(date);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'PKR', currencyDisplay: 'narrowSymbol' }).format(amount);
   } catch (error) {
-    return null;
+    return `${currency || 'PKR'} ${amount.toFixed(2)}`;
   }
 }
 
@@ -24,33 +27,17 @@ function OrderSuccess() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const fallbackMeta = React.useMemo(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('fusionLastOrder'));
-      return stored || null;
-    } catch (error) {
-      return null;
-    }
-  }, []);
-
+  const fallbackMeta = React.useMemo(() => readLastOrder(), []);
   const stateMeta = location.state || {};
 
+  const orderId = stateMeta.orderId || fallbackMeta?.orderId || '';
   const orderNumber = stateMeta.orderNumber || fallbackMeta?.orderNumber;
-  const email = stateMeta.email || fallbackMeta?.email;
-  const estimatedDelivery = stateMeta.estimatedDelivery;
+  const email = stateMeta.email;
+  const currency = stateMeta.currency;
   const items = Array.isArray(stateMeta.items) ? stateMeta.items : [];
   const total = typeof stateMeta.total === 'number' ? stateMeta.total : null;
 
-  const formattedETA = formatDate(estimatedDelivery);
-
-  const handleTrackOrder = () => {
-    if (!orderNumber || !email) {
-      navigate('/order-tracking');
-      return;
-    }
-    const params = new URLSearchParams({ orderNumber, email }).toString();
-    navigate(`/order-tracking?${params}`);
-  };
+  const handleTrackOrder = () => navigate(orderId ? `/order-tracking?orderId=${encodeURIComponent(orderId)}` : '/order-tracking');
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6, mb: 10 }}>
@@ -71,33 +58,28 @@ function OrderSuccess() {
                 Confirmation sent to {email}
               </Typography>
             )}
-            {formattedETA && (
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                <LocalShippingIcon fontSize="small" color="primary" />
-                <Typography variant="caption" color="text.secondary">
-                  Estimated delivery: {formattedETA}
-                </Typography>
-              </Stack>
-            )}
+            <Typography variant="caption" color="text.secondary">
+              Payment is collected in cash when your order is delivered.
+            </Typography>
           </Stack>
         )}
 
         {items.length > 0 && (
           <Box sx={{ textAlign: 'left', mb: 4 }}>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Items in this shipment
+              Items in this order
             </Typography>
             <List dense>
               {items.map(item => (
                 <ListItem key={`${item.productId}-${item.name}`} disableGutters sx={{ py: 0.5 }}>
-                  <ListItemText primary={item.name} secondary={`Qty ${item.quantity} • $${Number(item.price || 0).toFixed(2)}`} />
+                  <ListItemText primary={item.name} secondary={[`Qty ${item.quantity}`, formatMoney(item.unitPrice, currency)].filter(Boolean).join(' • ')} />
                 </ListItem>
               ))}
             </List>
-            {typeof total === 'number' && <Divider sx={{ my: 2 }} />}
-            {typeof total === 'number' && (
+            {total !== null && <Divider sx={{ my: 2 }} />}
+            {total !== null && (
               <Typography variant="subtitle2" fontWeight={600}>
-                Order total: ${total.toFixed(2)}
+                Order total: {formatMoney(total, currency)}
               </Typography>
             )}
           </Box>

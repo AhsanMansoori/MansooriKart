@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import { AuditLog } from '../src/models/auditLog.js';
 import { GoodsReceipt, PurchaseReturn } from '../src/models/goodsReceipt.js';
 import { InventoryBalance } from '../src/models/inventoryBalance.js';
@@ -100,10 +100,7 @@ test('purchasing compensates inventory when a receipt or return cannot be audite
       3,
       'the movement ledger must reconcile with the balance'
     );
-    assert.ok(
-      movements.some((movement: any) => movement.quantityDelta === -4),
-      'the compensating reversal must be recorded, not hidden'
-    );
+    assert.equal(movements.length, 1, 'aborted receipt writes no movement or compensating reversal');
     // The same key is free to be retried once auditing works again.
     await AuditLog.collection.dropIndex('action_1');
     const retried = await receiveGoods(

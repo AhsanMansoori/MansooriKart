@@ -4,8 +4,7 @@ Phase G: hybrid fulfilment. MansooriKart sells both goods it owns and holds in i
 warehouses, and goods a supplier ships directly to the customer. Everything below describes
 the implemented `/api/v1` runtime (`backend/src/services/dropshipService.ts`,
 `backend/src/services/publicationService.ts`, `backend/src/routes/v1/adminDropshipFulfillments.ts`,
-`backend/src/config/dropshipping.ts`). The frozen legacy `/api/*` runtime is untouched, and no
-frontend was built in this phase.
+`backend/src/config/dropshipping.ts`). The removed legacy `/api/*` runtime has no active consumer.
 
 **Inventory authority is unchanged.** `InventoryBalance` remains the authority for
 MansooriKart-owned physical stock, `Product.stock` remains a service-maintained compatibility
@@ -149,7 +148,7 @@ cannot supply one.
 ### Creation at checkout
 
 Dropship lines are grouped by supplier and one fulfillment is created per supplier, inside the
-same compensated block that creates the order. Three things make that reliable:
+same transaction that creates the order. Three things make that reliable:
 
 - `{ order, supplier }` is **unique**, so a retry cannot add a second obligation for the same
   supplier on the same order. A duplicate-key error on that index is treated as success.

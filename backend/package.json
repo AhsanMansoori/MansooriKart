@@ -1,66 +1,39 @@
 {
-  "name": "@hoangsonww/fusion-electronics-backend",
-  "displayName": "Fusion Electronics Backend",
-  "version": "1.1.1",
-  "description": "A backend server for Fusion Electronics - a MERN stack e-commerce website",
-  "main": "index.js",
+  "name": "@mansoorikart/backend",
+  "displayName": "MansooriKart Backend",
+  "version": "1.1.0",
+  "description": "MansooriKart API server: TypeScript, Express, MongoDB, and the /api/v1 contract.",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "nodemon index.js",
-    "build": "npm run typecheck",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --project tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "jest --config jest.config.js",
-    "test:v1": "node --import tsx --test --test-concurrency=1 tests/**/*.test.ts",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "seed": "node seed/productSeeds.js dev",
-    "dev": "nodemon index.js",
-    "dev:v1": "tsx watch src/server.ts",
-    "weaviate-upsert": "node scripts/weaviate-upsert.js",
-    "weaviate-query": "node scripts/query-weaviate.js",
-    "sync-weaviate": "node scripts/sync-weaviate-ids.js",
-    "sync-pinecone": "node scripts/sync-pinecone.js",
-    "faiss-upsert": "node scripts/build-faiss-index.js",
-    "faiss-search": "node scripts/search-faiss-index.js",
-    "admin:bootstrap": "node scripts/bootstrap-super-admin.js"
+    "test": "node --import tsx --test --test-concurrency=1 tests/**/*.test.ts",
+    "test:watch": "node --import tsx --test --watch --test-concurrency=1 tests/**/*.test.ts",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage --test-concurrency=1 tests/**/*.test.ts",
+    "admin:bootstrap": "tsx src/scripts/bootstrap-super-admin.ts"
   },
   "keywords": [
     "backend",
     "server",
     "express",
     "mongoose",
-    "stripe",
     "ecommerce"
   ],
-  "author": "Son Nguyen",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hoangsonww/MERN-Stack-Ecommerce-App.git"
-  },
-  "bugs": {
-    "url": "https://github.com/hoangsonww/MERN-Stack-Ecommerce-App/issues"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",
     "express-rate-limit": "^8.7.0",
-    "express-validator": "^7.2.0",
-    "faiss-node": "^0.5.1",
+    "google-auth-library": "^10.9.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.3",
     "pdfkit": "^0.20.2",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1",
-    "weaviate-client": "^3.6.2",
-    "weaviate-ts-client": "^2.2.0",
     "zod": "^4.5.4"
   },
   "devDependencies": {
@@ -69,11 +42,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.4.0",
     "@types/pdfkit": "^0.17.6",
-    "exit-x": "^0.2.2",
-    "jest": "^30.0.4",
-    "jest-circus": "^30.0.4",
     "mongodb-memory-server": "^11.2.0",
-    "nodemon": "^3.1.4",
     "supertest": "^7.1.1",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"

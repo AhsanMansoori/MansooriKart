@@ -11,6 +11,7 @@ const merge = z.object({ items: z.array(item).max(50) }).strict();
 const productParams = z.object({ productId: z.string().regex(/^[a-f\d]{24}$/i) }).strict();
 router.use(requireAuth);
 router.get('/', controller.get);
+router.put('/sync', validate(merge), controller.sync);
 router.post('/items', validate(item), controller.add);
 router.post('/merge', validate(merge), controller.merge);
 router.patch('/items/:productId', validate(productParams, 'params'), validate(quantity), controller.update);

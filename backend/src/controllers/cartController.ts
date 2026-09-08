@@ -5,7 +5,7 @@ import { sendFailure, sendSuccess } from '../utils/api-response.js';
 // Availability failures are 409 (the request was well formed, the goods are not there);
 // anything else a cart operation raises is a missing resource. Supplier-side
 // unavailability joins the existing warehouse case rather than inventing a new shape.
-const CONFLICT_CODES = ['INSUFFICIENT_STOCK', 'SUPPLIER_UNAVAILABLE', 'SUPPLIER_OUT_OF_STOCK'];
+const CONFLICT_CODES = ['INSUFFICIENT_STOCK', 'SUPPLIER_UNAVAILABLE', 'SUPPLIER_OUT_OF_STOCK', 'IDEMPOTENCY_CONFLICT', 'CART_ITEMS_DUPLICATE', 'CART_LIMIT'];
 
 const respond = (error: unknown, request: Request, response: Response, next: NextFunction) => {
   if (error instanceof cart.CartError)
@@ -52,6 +52,17 @@ export const clear = async (request: Request, response: Response, next: NextFunc
 export const merge = async (request: Request, response: Response, next: NextFunction) => {
   try {
     return sendSuccess(response, await cart.mergeGuestCart(request.auth!.userId, request.body.items));
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
+
+export const sync = async (request: Request, response: Response, next: NextFunction) => {
+  const key = request.header('idempotency-key');
+  if (!key || key.length < 8 || key.length > 128)
+    return sendFailure(response, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key header is required.', request.requestId);
+  try {
+    return sendSuccess(response, await cart.syncCart(request.auth!.userId, request.body.items, key));
   } catch (error) {
     return respond(error, request, response, next);
   }

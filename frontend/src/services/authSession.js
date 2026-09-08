@@ -14,3 +14,19 @@ export function getAccessToken() {
   if (legacy) persistAccessToken(legacy);
   return legacy || null;
 }
+
+/**
+ * Whether a bearer token is present.
+ *
+ * This is a UI affordance only: it decides what the shopper is offered, never what they are
+ * allowed to do. Every protected action is authorized server-side from the token itself, so a
+ * tampered localStorage buys nothing but a rejected request.
+ */
+export function isAuthenticated() {
+  return Boolean(getAccessToken());
+}
+
+export function clearAccessToken() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  legacyKeys.forEach(key => localStorage.removeItem(key));
+}

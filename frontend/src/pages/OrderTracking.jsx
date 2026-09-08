@@ -1,437 +1,324 @@
 import * as React from 'react';
 import {
+  Alert,
+  AlertTitle,
   Box,
   Button,
   Chip,
+  CircularProgress,
   Container,
-  Grid,
   IconButton,
   List,
   ListItem,
   ListItemText,
+  MenuItem,
   Paper,
   Stack,
   Step,
   StepLabel,
   Stepper,
   TextField,
-  Typography,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import ReplayIcon from '@mui/icons-material/Replay';
 import QueryBuilderIcon from '@mui/icons-material/QueryBuilder';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import HomeIcon from '@mui/icons-material/Home';
-import SupportAgentIcon from '@mui/icons-material/SupportAgent';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import WarehouseIcon from '@mui/icons-material/Warehouse';
-import DeliveryDiningIcon from '@mui/icons-material/DeliveryDining';
-import HandshakeIcon from '@mui/icons-material/Handshake';
-import { useSearchParams } from 'react-router-dom';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { useNotifier } from '../context/NotificationProvider';
-import { apiClient, withRetry } from '../services/apiClient';
+import { isAuthenticated } from '../services/authSession';
+import { readLastOrder } from '../services/lastOrder';
+import { ORDER_PROGRESS, fetchMyOrders, fetchOrderTracking, orderStatusLabel } from '../services/orders';
 
-const fallbackFlow = [
-  {
-    code: 'ORDER_PLACED',
-    label: 'Order placed',
-    description: 'We received your order and secured the inventory.',
-  },
-  {
-    code: 'PAYMENT_VERIFIED',
-    label: 'Payment verified',
-    description: 'Payment cleared securely and your order is locked in.',
-  },
-  {
-    code: 'PICKING_ITEMS',
-    label: 'Picking items',
-    description: 'Fulfillment specialists are pulling your products from the shelves.',
-  },
-  {
-    code: 'PACKED_FOR_SHIPMENT',
-    label: 'Packed for shipment',
-    description: 'Everything is sealed with tamper protection and ready for carrier pickup.',
-  },
-  {
-    code: 'HANDOFF_TO_CARRIER',
-    label: 'Handed to carrier',
-    description: 'Carrier has scanned the parcel and left our facility.',
-  },
-  {
-    code: 'IN_TRANSIT',
-    label: 'In transit',
-    description: 'The shipment is moving through regional hubs on the way to you.',
-  },
-  {
-    code: 'AT_LOCAL_DEPOT',
-    label: 'Arrived locally',
-    description: 'Package is at your local distribution center awaiting final sort.',
-  },
-  {
-    code: 'OUT_FOR_DELIVERY',
-    label: 'Out for delivery',
-    description: 'A courier is heading your way with the package on board.',
-  },
-  {
-    code: 'DELIVERED',
-    label: 'Delivered',
-    description: 'The courier marked the parcel as delivered. Enjoy your new gear!',
-  },
-  {
-    code: 'DELIVERY_CONFIRMED',
-    label: 'Delivery verified',
-    description: 'Delivery confirmation logged with proof for your records.',
-  },
-];
+/**
+ * Order tracking for the signed-in shopper.
+ *
+ * The API addresses an order by id and scopes it to the authenticated customer, so this page
+ * lists the shopper's own orders and nothing else. The old form — an order number plus an email
+ * address — is gone: those two strings are not a credential, and anyone holding them could read
+ * somebody else's order.
+ *
+ * Every stage and timestamp shown below comes from the order's real status trail. Nothing is
+ * invented: a stage the API has not reported yet simply carries no timestamp.
+ */
 
-const iconBase = { fontSize: 24, color: 'primary.main' };
-const successIconBase = { ...iconBase, color: 'success.main' };
-
-const statusIcons = {
-  ORDER_PLACED: <InventoryIcon sx={iconBase} />,
-  PAYMENT_VERIFIED: <HandshakeIcon sx={iconBase} />,
-  PICKING_ITEMS: <WarehouseIcon sx={iconBase} />,
-  QUALITY_CHECK: <QueryBuilderIcon sx={iconBase} />,
-  PACKED_FOR_SHIPMENT: <InventoryIcon sx={iconBase} />,
-  HANDOFF_TO_CARRIER: <DeliveryDiningIcon sx={iconBase} />,
-  IN_TRANSIT: <LocalShippingIcon sx={iconBase} />,
-  AT_LOCAL_DEPOT: <WarehouseIcon sx={iconBase} />,
-  OUT_FOR_DELIVERY: <HomeIcon sx={iconBase} />,
-  DELIVERED: <CheckCircleOutlineIcon sx={successIconBase} />,
-  DELIVERY_CONFIRMED: <CheckCircleOutlineIcon sx={successIconBase} />,
+/** The stages a Cash-on-Delivery order actually walks, in the API's own vocabulary. */
+const STAGE_DETAIL = {
+  PENDING: { description: 'We have your order and are getting it ready to confirm.', icon: <InventoryIcon /> },
+  CONFIRMED: { description: 'Your order is confirmed and queued for fulfilment.', icon: <QueryBuilderIcon /> },
+  PROCESSING: { description: 'Your items are being picked and packed.', icon: <WarehouseIcon /> },
+  SHIPPED: { description: 'Your order has left our warehouse and is on its way to you.', icon: <LocalShippingIcon /> },
+  DELIVERED: { description: 'Delivered. Payment is collected in cash on delivery.', icon: <CheckCircleOutlineIcon /> },
 };
 
-const defaultIcon = <QueryBuilderIcon sx={iconBase} />;
-
-const getStatusIcon = (code, size = 24) => {
-  const baseIcon = statusIcons[code] || defaultIcon;
-  return React.cloneElement(baseIcon, {
-    sx: { ...(baseIcon.props.sx || {}), fontSize: size },
-  });
+/** Statuses off the happy path. They end or divert the journey, so they are called out separately. */
+const EXCEPTION_SEVERITY = {
+  CANCELLED: 'warning',
+  RETURN_REQUESTED: 'info',
+  RETURN_APPROVED: 'info',
+  RETURN_REJECTED: 'warning',
+  RETURNED: 'info',
 };
 
-const emailPattern = /[^@\s]+@[^@\s]+\.[^@\s]+/;
-
-function formatTimestamp(dateString) {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return '';
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(date);
-  } catch (error) {
-    return '';
-  }
+function formatTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
 }
+
+const orderId = order => String(order?._id || order?.id || '');
 
 function OrderTracking() {
   const { notify } = useNotifier();
   const [searchParams] = useSearchParams();
+  const requestedId = searchParams.get('orderId') || '';
 
-  const lastOrder = React.useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('fusionLastOrder')) || {};
-    } catch (error) {
-      return {};
-    }
-  }, []);
-
-  const initialForm = React.useMemo(() => {
-    const paramOrderNumber = searchParams.get('orderNumber') || '';
-    const paramEmail = searchParams.get('email') || '';
-    return {
-      orderNumber: paramOrderNumber || lastOrder.orderNumber || '',
-      email: paramEmail || lastOrder.email || '',
-    };
-  }, [lastOrder.email, lastOrder.orderNumber, searchParams]);
-
-  const [form, setForm] = React.useState(initialForm);
-  const [loading, setLoading] = React.useState(false);
-  const [trackingData, setTrackingData] = React.useState(null);
+  const [signedIn, setSignedIn] = React.useState(() => isAuthenticated());
+  const [orders, setOrders] = React.useState([]);
+  const [ordersLoading, setOrdersLoading] = React.useState(() => isAuthenticated());
+  const [selectedId, setSelectedId] = React.useState('');
+  const [tracking, setTracking] = React.useState(null);
+  const [trackingLoading, setTrackingLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState('');
 
-  const fetchTracking = React.useCallback(
-    async (payload, { silent = false } = {}) => {
-      const sanitizedOrderNumber = payload.orderNumber?.trim().toUpperCase();
-      const sanitizedEmail = payload.email?.trim().toLowerCase();
-
-      if (!sanitizedOrderNumber || !sanitizedEmail) {
-        notify({ severity: 'warning', message: 'Enter both your email and order number to continue.' });
+  /** A 401 means the stored token has expired or been cleared, so the page falls back to the sign-in prompt. */
+  const handleFailure = React.useCallback(
+    (error, fallback) => {
+      if (error?.response?.status === 401) {
+        setSignedIn(false);
+        setErrorMessage('Please sign in again to see your orders.');
         return;
       }
-
-      if (!emailPattern.test(sanitizedEmail)) {
-        notify({ severity: 'warning', message: 'Enter a valid email associated with the order.' });
-        return;
-      }
-
-      setLoading(true);
-      setErrorMessage('');
-
-      if (!silent) {
-        notify({ severity: 'info', message: 'Fetching your order status…', autoHideDuration: 2000 });
-      }
-
-      try {
-        const { data } = await withRetry(() =>
-          apiClient.post('orders/track', {
-            orderNumber: sanitizedOrderNumber,
-            email: sanitizedEmail,
-          })
-        );
-
-        setTrackingData(data);
-
-        try {
-          localStorage.setItem('fusionLastOrder', JSON.stringify({ orderNumber: data.orderNumber, email: data.email }));
-        } catch (storageError) {
-          console.warn('Unable to persist last order reference', storageError);
-        }
-
-        if (!silent && data?.currentStatus?.label) {
-          notify({ severity: 'success', message: `Status updated: ${data.currentStatus.label}` });
-        }
-      } catch (error) {
-        console.error('Error fetching order status:', error);
-        const message = error?.response?.data?.error || 'We could not locate that order. Double-check the details and try again.';
-        setErrorMessage(message);
-        notify({ severity: 'error', message });
-      } finally {
-        setLoading(false);
-      }
+      const message = error?.normalizedMessage || fallback;
+      setErrorMessage(message);
+      notify({ severity: 'error', message });
     },
     [notify]
   );
 
   React.useEffect(() => {
-    setForm(initialForm);
-    if (initialForm.orderNumber && initialForm.email) {
-      fetchTracking(initialForm, { silent: true });
-    }
-  }, [fetchTracking, initialForm]);
+    if (!signedIn) return undefined;
+    let active = true;
+    (async () => {
+      try {
+        const rows = await fetchMyOrders();
+        if (!active) return;
+        setOrders(rows);
+        // Whatever the caller asked for wins, then the order just placed in this browser, then the newest.
+        const ids = rows.map(orderId).filter(Boolean);
+        const preferred = [requestedId, readLastOrder()?.orderId].find(id => id && ids.includes(String(id)));
+        setSelectedId(preferred ? String(preferred) : ids[0] || '');
+      } catch (error) {
+        if (active) handleFailure(error, 'We could not load your orders. Please try again.');
+      } finally {
+        if (active) setOrdersLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [handleFailure, requestedId, signedIn]);
 
-  const handleChange = event => {
-    const { name, value } = event.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
+  const loadTracking = React.useCallback(
+    async (id, { silent = false } = {}) => {
+      if (!id) return;
+      setTrackingLoading(true);
+      setErrorMessage('');
+      try {
+        const data = await fetchOrderTracking(id);
+        setTracking(data);
+        if (!silent) notify({ severity: 'success', message: `Status updated: ${orderStatusLabel(data?.currentStatus)}` });
+      } catch (error) {
+        setTracking(null);
+        handleFailure(error, 'We could not load that order right now.');
+      } finally {
+        setTrackingLoading(false);
+      }
+    },
+    [handleFailure, notify]
+  );
 
-  const handleSubmit = event => {
-    event.preventDefault();
-    fetchTracking(form);
-  };
+  React.useEffect(() => {
+    if (signedIn && selectedId) loadTracking(selectedId, { silent: true });
+  }, [loadTracking, selectedId, signedIn]);
 
-  const hasTracking = Boolean(trackingData);
+  const timeline = React.useMemo(() => (Array.isArray(tracking?.timeline) ? tracking.timeline : []), [tracking]);
 
-  const activeFlow = React.useMemo(() => {
-    if (!hasTracking) return [];
-    const provided = trackingData?.statusFlow;
-    if (Array.isArray(provided) && provided.length) {
-      return provided;
-    }
-    return fallbackFlow;
-  }, [hasTracking, trackingData]);
-
-  const history = React.useMemo(() => {
-    if (!hasTracking) return [];
-    return trackingData?.statusHistory || [];
-  }, [hasTracking, trackingData]);
-  const historyMap = React.useMemo(() => {
+  /** First time each status was entered. The trail records every transition, so absence means "not yet". */
+  const reachedAt = React.useMemo(() => {
     const entries = new Map();
-    history.forEach(status => {
-      entries.set(status.code, status);
+    timeline.forEach(entry => {
+      if (entry?.to && !entries.has(entry.to)) entries.set(entry.to, entry.at);
     });
     return entries;
-  }, [history]);
-  const currentStatus = hasTracking ? trackingData?.currentStatus : null;
+  }, [timeline]);
 
-  const historyCodes = history.map(status => status.code);
-  const activeCode = currentStatus?.code;
-  const activeIndex = hasTracking ? activeFlow.findIndex(step => step.code === activeCode) : -1;
-  const resolvedActiveIndex = hasTracking ? (activeIndex >= 0 ? activeIndex : Math.max(historyCodes.length - 1, 0)) : -1;
-  const stepperActiveIndex = resolvedActiveIndex >= 0 ? resolvedActiveIndex : 0;
-
-  const renderStatusAvatar = React.useCallback((code, isActive) => {
-    const iconElement = getStatusIcon(code, 22);
-    return (
-      <Box
-        sx={{
-          width: 40,
-          height: 40,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: isActive ? 'rgba(40, 116, 240, 0.12)' : 'rgba(148, 163, 184, 0.18)',
-          flexShrink: 0,
-          alignSelf: 'center',
-        }}
-      >
-        {iconElement}
-      </Box>
-    );
-  }, []);
+  const currentStatus = tracking?.currentStatus || '';
+  const exceptionSeverity = EXCEPTION_SEVERITY[currentStatus];
+  // A cancelled or returned order is no longer on the delivery path, so the stepper stops at the
+  // furthest stage the order genuinely reached rather than pretending the journey continues.
+  const furthestIndex = ORDER_PROGRESS.reduce((furthest, status, index) => (reachedAt.has(status) ? index : furthest), -1);
+  const currentIndex = ORDER_PROGRESS.indexOf(currentStatus);
+  const activeIndex = currentIndex >= 0 ? currentIndex : furthestIndex;
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 6, md: 10 } }}>
       <Stack spacing={3} alignItems="center" textAlign="center" sx={{ mb: 4 }}>
         <Chip label="Order tracking" color="primary" variant="outlined" />
         <Typography variant="h3" fontWeight={700}>
-          Real-time visibility from checkout to doorstep
+          Follow your order from checkout to doorstep
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 680 }}>
-          Enter your order number to see carrier updates, proof of delivery, and concierge assistance options when you need them.
+          Pick one of your orders to see exactly where it is. Updates appear here as our team moves it along.
         </Typography>
       </Stack>
 
-      <Paper elevation={0} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
-            <form onSubmit={handleSubmit}>
-              <Stack spacing={2}>
-                <TextField
-                  label="Order number"
-                  name="orderNumber"
-                  value={form.orderNumber}
-                  onChange={handleChange}
-                  placeholder="e.g. FE-482019"
-                  required
-                  fullWidth
-                  InputProps={{ sx: { textTransform: 'uppercase' } }}
-                />
-                <TextField
-                  label="Email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  type="email"
-                  placeholder="you@example.com"
-                  required
-                  fullWidth
-                />
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Button type="submit" variant="contained" size="large" disabled={loading}>
-                    {loading ? 'Updating…' : 'Track my order'}
-                  </Button>
-                  {trackingData && (
-                    <Tooltip title="Refresh status" arrow>
-                      <IconButton color="primary" onClick={() => fetchTracking(form)} disabled={loading}>
-                        <ReplayIcon />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  Having trouble locating your ID? Search your inbox for the subject “Fusion Electronics Order Confirmation”.
-                </Typography>
-              </Stack>
-            </form>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Stack spacing={2}>
+      {!signedIn ? (
+        <Paper elevation={0} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
+          <Alert
+            severity="info"
+            action={
+              <Button component={RouterLink} to="/login" size="small">
+                Sign in
+              </Button>
+            }
+          >
+            <AlertTitle>Sign in to track your order</AlertTitle>
+            Your orders are private to your account, so tracking is only available once you are signed in.
+          </Alert>
+        </Paper>
+      ) : (
+        <Paper elevation={0} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
+          {ordersLoading ? (
+            <Stack direction="row" spacing={2} alignItems="center">
+              <CircularProgress size={24} />
+              <Typography variant="body2" color="text.secondary">
+                Loading your orders…
+              </Typography>
+            </Stack>
+          ) : orders.length === 0 ? (
+            <Stack spacing={2} alignItems="flex-start">
               <Typography variant="h6" fontWeight={700}>
-                Concierge assistance
+                No orders yet
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                For delivery holds, reroutes, or signature requests, reach out to our logistics team and we will coordinate directly with the carrier.
+                Once you place an order it will appear here with its live status.
               </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <SupportAgentIcon color="primary" fontSize="small" />
-                <Typography variant="caption" color="text.secondary">
-                  support@fusionelectronics.io • +1 (833) 555-0195
-                </Typography>
-              </Stack>
-              {trackingData?.estimatedDelivery && (
-                <Typography variant="caption" color="text.secondary">
-                  Estimated delivery: {formatTimestamp(trackingData.estimatedDelivery)}
-                </Typography>
-              )}
-              {errorMessage && (
-                <Typography variant="caption" color="error">
-                  {errorMessage}
-                </Typography>
-              )}
+              <Button variant="contained" component={RouterLink} to="/shop">
+                Start shopping
+              </Button>
             </Stack>
-          </Grid>
-        </Grid>
-      </Paper>
+          ) : (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+              <TextField
+                select
+                fullWidth
+                label="Your orders"
+                value={selectedId}
+                onChange={event => setSelectedId(event.target.value)}
+                helperText="Newest first"
+              >
+                {orders.map(order => (
+                  <MenuItem key={orderId(order)} value={orderId(order)}>
+                    {`#${order.orderNumber} • ${orderStatusLabel(order.orderStatus)}`}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Tooltip title="Refresh status" arrow>
+                <IconButton color="primary" onClick={() => loadTracking(selectedId)} disabled={trackingLoading || !selectedId}>
+                  <ReplayIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          )}
+          {errorMessage && (
+            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 2 }}>
+              {errorMessage}
+            </Typography>
+          )}
+        </Paper>
+      )}
 
-      <Paper elevation={0} sx={{ mt: 5, p: { xs: 3, md: 5 }, borderRadius: 4 }}>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-          <Typography variant="h6" fontWeight={700}>
-            {hasTracking ? 'Live order journey' : 'What to expect along the way'}
+      {signedIn && trackingLoading && !tracking && (
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ mt: 4 }}>
+          <CircularProgress size={24} />
+          <Typography variant="body2" color="text.secondary">
+            Loading the latest status…
           </Typography>
-          {trackingData?.orderNumber && <Chip label={`Order #: ${trackingData.orderNumber}`} variant="outlined" color="primary" />}
         </Stack>
-        {hasTracking ? (
-          <Stepper orientation="vertical" activeStep={stepperActiveIndex} sx={{ mt: 2 }}>
-            {activeFlow.map((step, index) => {
-              const statusEntry = historyMap.get(step.code);
-              const isActive = index === resolvedActiveIndex;
-              const completed = index < resolvedActiveIndex;
+      )}
+
+      {signedIn && tracking && (
+        <Paper elevation={0} sx={{ mt: 5, p: { xs: 3, md: 5 }, borderRadius: 4 }}>
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="h6" fontWeight={700}>
+              Order journey
+            </Typography>
+            {tracking.orderNumber && <Chip label={`Order #: ${tracking.orderNumber}`} variant="outlined" color="primary" />}
+          </Stack>
+
+          {exceptionSeverity && (
+            <Alert severity={exceptionSeverity} sx={{ mt: 2 }}>
+              <AlertTitle>{orderStatusLabel(currentStatus)}</AlertTitle>
+              This order is no longer on the delivery path. The stages below show how far it got.
+            </Alert>
+          )}
+
+          <Stepper orientation="vertical" activeStep={Math.max(activeIndex, 0)} sx={{ mt: 2 }}>
+            {ORDER_PROGRESS.map((status, index) => {
+              const reached = reachedAt.has(status);
+              const isActive = index === activeIndex;
               return (
-                <Step key={step.code || step.label} completed={completed}>
-                  <StepLabel SlotProps={{ iconContainer: { sx: { display: 'none' } } }}>
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                      {renderStatusAvatar(step.code, isActive || completed)}
-                      <Box>
-                        <Typography variant="subtitle1" fontWeight={700} color={isActive ? 'primary.main' : 'text.primary'}>
-                          {step.label}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {step.description}
-                        </Typography>
-                        {statusEntry?.enteredAt && (
-                          <Typography variant="caption" color="text.secondary">
-                            Updated {formatTimestamp(statusEntry.enteredAt)}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Stack>
+                <Step key={status} completed={reached && !isActive}>
+                  <StepLabel icon={React.cloneElement(STAGE_DETAIL[status].icon, { color: reached ? 'success' : isActive ? 'primary' : 'disabled' })}>
+                    <Typography variant="subtitle1" fontWeight={700} color={isActive ? 'primary.main' : 'text.primary'}>
+                      {orderStatusLabel(status)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {STAGE_DETAIL[status].description}
+                    </Typography>
+                    {reached && (
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTimestamp(reachedAt.get(status)) || 'Reached'}
+                      </Typography>
+                    )}
                   </StepLabel>
                 </Step>
               );
             })}
           </Stepper>
-        ) : (
-          <Box
-            sx={{
-              mt: 2,
-              p: 3,
-              borderRadius: 3,
-              bgcolor: 'rgba(148, 163, 184, 0.1)',
-              textAlign: 'left',
-            }}
-          >
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-              Ready when you are
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Enter your order number and the email used at checkout to unlock real-time tracking. Once we locate your order, the full journey timeline will
-              appear here with live updates.
-            </Typography>
-          </Box>
-        )}
-      </Paper>
+        </Paper>
+      )}
 
-      {hasTracking && history.length > 0 && (
+      {signedIn && timeline.length > 0 && (
         <Paper elevation={0} sx={{ mt: 5, p: { xs: 3, md: 5 }, borderRadius: 4 }}>
           <Typography variant="h6" fontWeight={700} gutterBottom>
-            Recent status updates
+            Status updates
           </Typography>
           <List dense>
-            {[...history].reverse().map(status => (
-              <ListItem key={`${status.code}-${status.enteredAt}`} disableGutters>
-                <ListItemText primary={status.label} secondary={`${formatTimestamp(status.enteredAt)} • ${status.description}`} />
+            {[...timeline].reverse().map((entry, index) => (
+              <ListItem key={`${entry.to}-${entry.at || index}`} disableGutters>
+                <ListItemText primary={orderStatusLabel(entry.to)} secondary={[formatTimestamp(entry.at), entry.reason].filter(Boolean).join(' • ') || null} />
               </ListItem>
             ))}
           </List>
         </Paper>
       )}
+
+      <Box sx={{ mt: 5, textAlign: 'center' }}>
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+          <SupportAgentIcon color="primary" fontSize="small" />
+          <Typography variant="caption" color="text.secondary">
+            Need a delivery hold, a reroute or help with a return? Visit the <RouterLink to="/support">Support Centre</RouterLink> and our team will coordinate
+            with the courier.
+          </Typography>
+        </Stack>
+      </Box>
     </Container>
   );
 }

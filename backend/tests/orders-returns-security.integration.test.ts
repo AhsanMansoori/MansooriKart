@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { Address } from '../src/models/address.js';
@@ -125,7 +125,7 @@ test('returns, audit trails, ownership boundaries and strict contracts hold acro
       .set('Authorization', `Bearer ${at}`)
       .send({ items: [{ productId: String(product._id), quantity: 2 }], reason: 'Damaged on arrival' });
     assert.equal(r.status, 201);
-    const returnId = r.body.data._id;
+    const returnId = r.body.data.id;
     assert.equal(r.body.data.status, 'REQUESTED');
     assert.match(r.body.data.returnNumber, /^RET-\d{8}-[0-9A-F]{6}$/);
     // Remaining purchased quantity is 1, so a further 2 must be refused.

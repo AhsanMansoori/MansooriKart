@@ -1,3 +1,4 @@
+import { atomic, rethrowTransient } from './transaction.js';
 import { InventoryBalance } from '../models/inventoryBalance.js';
 import { InventoryMovement } from '../models/inventoryMovement.js';
 import { InventoryTransfer } from '../models/inventoryTransfer.js';
@@ -64,7 +65,7 @@ export async function ensureBalance(productId: string, warehouseId?: string, loc
   if (!balance) throw new InventoryError('BALANCE_UNAVAILABLE', 'Inventory balance is unavailable.');
   return balance;
 }
-export async function adjustStock(input: {
+async function adjustStockImpl(input: {
   productId: string;
   quantityDelta: number;
   reason: string;
@@ -89,32 +90,25 @@ export async function adjustStock(input: {
     { new: true }
   );
   if (!product) {
-    await InventoryBalance.updateOne({ _id: updated._id, quantityOnHand: updated.quantityOnHand }, { $inc: { quantityOnHand: -input.quantityDelta } });
     throw new InventoryError('PRODUCT_STOCK_MIRROR_FAILED', 'Inventory update could not be completed.');
   }
-  try {
-    await InventoryMovement.create({
-      product: product._id,
-      warehouse: updated.warehouse,
-      location: updated.location,
-      type: input.type || 'ADJUSTMENT',
-      quantityDelta: input.quantityDelta,
-      previousStock: updated.quantityOnHand - input.quantityDelta,
-      newStock: updated.quantityOnHand,
-      reason: input.reason,
-      actor: input.actor,
-      requestId: input.requestId,
-      referenceType: input.referenceType,
-      referenceId: input.referenceId,
-    });
-  } catch (error) {
-    await InventoryBalance.updateOne({ _id: updated._id, quantityOnHand: updated.quantityOnHand }, { $inc: { quantityOnHand: -input.quantityDelta } });
-    await Product.updateOne({ _id: product._id, stock: product.stock }, { $inc: { stock: -input.quantityDelta } });
-    throw error;
-  }
+  await InventoryMovement.create({
+    product: product._id,
+    warehouse: updated.warehouse,
+    location: updated.location,
+    type: input.type || 'ADJUSTMENT',
+    quantityDelta: input.quantityDelta,
+    previousStock: updated.quantityOnHand - input.quantityDelta,
+    newStock: updated.quantityOnHand,
+    reason: input.reason,
+    actor: input.actor,
+    requestId: input.requestId,
+    referenceType: input.referenceType,
+    referenceId: input.referenceId,
+  });
   return product;
 }
-export async function adjustStockWithAudit(
+async function adjustStockWithAuditImpl(
   input: {
     productId: string;
     quantityDelta: number;
@@ -136,13 +130,13 @@ export async function adjustStockWithAudit(
       requestId: input.requestId,
       metadata: { quantityDelta: input.quantityDelta, reason: input.reason, warehouseId: input.warehouseId, locationId: input.locationId },
     });
-  } catch {
-    await adjustStock({ ...input, quantityDelta: -input.quantityDelta, reason: 'Inventory adjustment audit compensation', type: 'ADJUSTMENT' });
+  } catch (error) {
+    rethrowTransient(error);
     throw new InventoryError('ADJUSTMENT_AUDIT_FAILED', 'Inventory adjustment could not be completed.');
   }
   return product;
 }
-export async function transferStock(input: {
+async function transferStockImpl(input: {
   productId: string;
   sourceWarehouseId: string;
   sourceLocationId: string;
@@ -158,37 +152,33 @@ export async function transferStock(input: {
   if (input.sourceLocationId === input.destinationLocationId) throw new InventoryError('SELF_TRANSFER', 'Source and destination locations must differ.');
   const replay = await InventoryTransfer.findOne({ idempotencyKey: input.idempotencyKey }).lean();
   if (replay) return replay;
-  const [sourceLocation, destinationLocation] = await Promise.all([
-    StockLocation.findOne({ _id: input.sourceLocationId, warehouse: input.sourceWarehouseId, status: 'ACTIVE' }),
-    StockLocation.findOne({ _id: input.destinationLocationId, warehouse: input.destinationWarehouseId, status: 'ACTIVE' }),
-  ]);
+  const sourceLocation = await StockLocation.findOne({ _id: input.sourceLocationId, warehouse: input.sourceWarehouseId, status: 'ACTIVE' });
+  const destinationLocation = await StockLocation.findOne({ _id: input.destinationLocationId, warehouse: input.destinationWarehouseId, status: 'ACTIVE' });
   if (!sourceLocation || !destinationLocation) throw new InventoryError('LOCATION_INVALID', 'Source or destination location is unavailable.');
-  const [source, destination] = await Promise.all([
-    ensureBalance(input.productId, input.sourceWarehouseId, input.sourceLocationId),
-    ensureBalance(input.productId, input.destinationWarehouseId, input.destinationLocationId),
-  ]);
+  const source = await ensureBalance(input.productId, input.sourceWarehouseId, input.sourceLocationId);
+  const destination = await ensureBalance(input.productId, input.destinationWarehouseId, input.destinationLocationId);
   const reduced = await InventoryBalance.findOneAndUpdate(
     { _id: source._id, $expr: { $gte: [{ $subtract: ['$quantityOnHand', '$quantityReserved'] }, input.quantity] } },
     { $inc: { quantityOnHand: -input.quantity } },
     { new: true }
   );
   if (!reduced) throw new InventoryError('INSUFFICIENT_STOCK', 'Insufficient stock.');
-  let increased: any;
-  try {
-    increased = await InventoryBalance.findByIdAndUpdate(destination._id, { $inc: { quantityOnHand: input.quantity } }, { new: true });
-    const transfer = await InventoryTransfer.create({
-      product: input.productId,
-      sourceWarehouse: input.sourceWarehouseId,
-      sourceLocation: input.sourceLocationId,
-      destinationWarehouse: input.destinationWarehouseId,
-      destinationLocation: input.destinationLocationId,
-      quantity: input.quantity,
-      reason: input.reason,
-      idempotencyKey: input.idempotencyKey,
-      actor: input.actor,
-      requestId: input.requestId,
-    });
-    await InventoryMovement.create([
+  const increased = await InventoryBalance.findByIdAndUpdate(destination._id, { $inc: { quantityOnHand: input.quantity } }, { new: true });
+  const transfer = await InventoryTransfer.create({
+    product: input.productId,
+    sourceWarehouse: input.sourceWarehouseId,
+    sourceLocation: input.sourceLocationId,
+    destinationWarehouse: input.destinationWarehouseId,
+    destinationLocation: input.destinationLocationId,
+    quantity: input.quantity,
+    reason: input.reason,
+    idempotencyKey: input.idempotencyKey,
+    actor: input.actor,
+    requestId: input.requestId,
+  });
+  if (!increased) throw new InventoryError('BALANCE_UNAVAILABLE', 'Destination inventory balance is unavailable.');
+  await InventoryMovement.create(
+    [
       {
         product: input.productId,
         warehouse: source.warehouse,
@@ -217,16 +207,22 @@ export async function transferStock(input: {
         referenceType: 'InventoryTransfer',
         referenceId: String(transfer._id),
       },
-    ]);
-    return transfer.toObject();
-  } catch (error: any) {
-    if (increased)
-      await InventoryBalance.updateOne({ _id: destination._id, quantityOnHand: increased.quantityOnHand }, { $inc: { quantityOnHand: -input.quantity } });
-    await InventoryBalance.updateOne({ _id: reduced._id, quantityOnHand: reduced.quantityOnHand }, { $inc: { quantityOnHand: input.quantity } });
-    if (error?.code === 11000) {
-      const duplicate = await InventoryTransfer.findOne({ idempotencyKey: input.idempotencyKey }).lean();
-      if (duplicate) return { ...duplicate, __replayed: true };
-    }
-    throw error;
-  }
+    ],
+    { ordered: true }
+  );
+  await AuditLog.create({
+    actor: input.actor,
+    action: 'INVENTORY_TRANSFERRED',
+    resourceType: 'InventoryTransfer',
+    resourceId: String(transfer._id),
+    requestId: input.requestId,
+    metadata: { productId: input.productId, quantity: input.quantity },
+  });
+  return transfer.toObject();
 }
+
+export const adjustStock = (...args: Parameters<typeof adjustStockImpl>) => atomic(() => adjustStockImpl(...args));
+
+export const adjustStockWithAudit = (...args: Parameters<typeof adjustStockWithAuditImpl>) => atomic(() => adjustStockWithAuditImpl(...args));
+
+export const transferStock = (...args: Parameters<typeof transferStockImpl>) => atomic(() => transferStockImpl(...args));

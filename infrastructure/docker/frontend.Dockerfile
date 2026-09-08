@@ -12,6 +12,10 @@ FROM dependencies AS build
 COPY frontend frontend
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
+# Public Google client id only. A build argument ends up in the shipped bundle and in image
+# history, so no secret may be passed this way.
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 RUN npm run build --workspace=@mansoorikart/frontend
 
 FROM nginx:1.27-alpine AS runtime

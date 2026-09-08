@@ -64,7 +64,8 @@ export const product = (value: Record<string, unknown> & { _id?: { toString(): s
   price: value.price,
   compareAtPrice: value.compareAtPrice,
   currency: value.currency || 'PKR',
-  availableStock: value.stock,
+  availableStock: (value.publicAvailability as any)?.availableStock ?? ((value.publicAvailability as any)?.canPurchase ? null : value.stock),
+  availability: value.publicAvailability,
   featured: Boolean(value.featured),
   ratingAverage: value.ratingAverage ?? value.rating ?? 0,
   ratingCount: value.ratingCount ?? value.numReviews ?? 0,
@@ -91,6 +92,21 @@ export const customerOrderItem = (value: Record<string, unknown>) => ({
   quantity: value.quantity,
   lineSubtotal: value.lineSubtotal,
 });
+/**
+ * The customer-visible part of an order's status trail.
+ *
+ * Stored history entries also carry `actor` and `requestId`, which identify the staff member
+ * who made the change and the internal request that carried it. Neither belongs in a customer
+ * payload, so every customer-facing surface that publishes a trail goes through this.
+ */
+export const customerStatusHistory = (value: unknown[] | undefined | null) =>
+  (value ?? []).map((entry: any) => ({
+    status: entry.status,
+    from: entry.from ?? null,
+    to: entry.to,
+    reason: entry.reason ?? null,
+    at: entry.at ?? null,
+  }));
 export const customerOrder = (value: Record<string, any>) => ({
   _id: value._id,
   orderNumber: value.orderNumber,
@@ -108,13 +124,7 @@ export const customerOrder = (value: Record<string, any>) => ({
   paymentStatus: value.paymentStatus,
   orderStatus: value.orderStatus,
   // Only the customer-meaningful part of the trail: no actor id, no request id.
-  statusHistory: (value.statusHistory ?? []).map((entry: Record<string, unknown>) => ({
-    status: entry.status,
-    from: entry.from ?? null,
-    to: entry.to,
-    reason: entry.reason ?? null,
-    at: entry.at ?? null,
-  })),
+  statusHistory: customerStatusHistory(value.statusHistory),
   createdAt: value.createdAt,
   updatedAt: value.updatedAt,
 });
@@ -135,6 +145,30 @@ export const adminProduct = (value: Record<string, unknown> & { _id?: { toString
   sellingPriceOverridden: Boolean(value.sellingPriceOverridden),
   supplierSuggestedRetailPrice: value.supplierSuggestedRetailPrice ?? null,
   publishedAt: value.publishedAt ?? null,
+  createdAt: value.createdAt,
+  updatedAt: value.updatedAt,
+});
+
+/** Customer after-sales projections deliberately exclude audit actors, keys and staff notes. */
+export const customerReturn = (value: any) => ({
+  id: asId(value),
+  returnNumber: value.returnNumber,
+  orderId: String(value.order),
+  status: value.status,
+  reason: value.reason,
+  items: (value.items ?? []).map((item: any) => ({ productId: String(item.productId), quantity: item.quantity })),
+  timeline: (value.history ?? []).map((entry: any) => ({ status: entry.to, at: entry.at })),
+  createdAt: value.createdAt,
+  updatedAt: value.updatedAt,
+});
+export const customerRefund = (value: any) => ({
+  id: asId(value),
+  refundNumber: value.refundNumber,
+  orderId: String(value.order),
+  amount: value.amount,
+  currency: value.currency,
+  status: value.status,
+  paymentMethod: value.paymentMethod,
   createdAt: value.createdAt,
   updatedAt: value.updatedAt,
 });

@@ -5,13 +5,12 @@ WORKDIR /workspace
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/package.json
 COPY backend/package.json backend/package.json
-RUN npm ci --workspace=@hoangsonww/fusion-electronics-backend --include-workspace-root=false
+RUN npm ci --workspace=@mansoorikart/backend --include-workspace-root=false
 
 FROM dependencies AS build
 
 COPY backend backend
-RUN npm run build --workspace=@hoangsonww/fusion-electronics-backend
-RUN npx tsc --project backend/tsconfig.json --noEmit false --rootDir backend/src --outDir backend/dist
+RUN npm run build --workspace=@mansoorikart/backend
 
 FROM node:26-alpine AS production-dependencies
 
@@ -20,7 +19,7 @@ WORKDIR /workspace
 COPY package.json package-lock.json ./
 COPY frontend/package.json frontend/package.json
 COPY backend/package.json backend/package.json
-RUN npm ci --omit=dev --workspace=@hoangsonww/fusion-electronics-backend --include-workspace-root=false
+RUN npm ci --omit=dev --workspace=@mansoorikart/backend --include-workspace-root=false
 
 FROM node:26-alpine AS runtime
 

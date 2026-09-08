@@ -18,19 +18,32 @@ import {
   ListItemText,
   Checkbox,
   Tooltip,
+  Button,
 } from '@mui/material';
 import ShoppingCartCheckoutIcon from '@mui/icons-material/ShoppingCartCheckout';
 import LockIcon from '@mui/icons-material/Lock';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import { useNotifier } from '../context/NotificationProvider';
-import { apiClient, withRetry } from '../services/apiClient';
+import { prepareCodOrder, confirmCodOrder, toAddressPayload } from '../services/checkout';
+import { rememberLastOrder } from '../services/lastOrder';
+import { isAuthenticated } from '../services/authSession';
 
+/**
+ * Checkout for a Cash-on-Delivery order.
+ *
+ * The order itself is created by the v1 API from the server-side cart and a saved address —
+ * see `services/checkout` for that sequence. This page's job is only to choose which cart lines
+ * to buy, collect the delivery details, and hand both over. No card details are collected.
+ */
 function Checkout({ cartItems = [], onOrderComplete }) {
   const navigate = useNavigate();
   const [orderCreated, setOrderCreated] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signedIn, setSignedIn] = useState(() => isAuthenticated());
+  const [prepared, setPrepared] = useState(null);
+  const [contactEmail, setContactEmail] = useState('');
   const { notify } = useNotifier();
 
   const [showCartSummary, setShowCartSummary] = useState(false);
@@ -59,56 +72,50 @@ function Checkout({ cartItems = [], onOrderComplete }) {
     setErrorMessage('');
 
     try {
-      const orderPayload = {
-        ...formData,
-        items: itemsToPurchase
-          .map(item => ({
-            productId: item._id || item.id,
-            quantity: item.quantity || 1,
-          }))
-          .filter(item => item.productId),
-      };
-
-      if (!orderPayload.items.length) {
-        setLoading(false);
-        notify({ severity: 'error', message: 'Unable to place order: missing product information.' });
-        return;
-      }
-
-      const { data: response } = await withRetry(() => apiClient.post('checkout/create-order', orderPayload));
-      const data = response?.data || response;
-
-      const normalizedEmail = formData.email?.trim() || '';
-
+      const next = await prepareCodOrder({ items: itemsToPurchase, address: toAddressPayload(formData) });
+      setPrepared(next);
+      setContactEmail(formData.email?.trim() || '');
+      notify({ severity: 'info', message: 'Review the server-calculated total, then confirm your order.' });
+    } catch (error) {
+      if (error?.response?.status === 401) setSignedIn(false);
+      const message = error?.normalizedMessage || error?.message || 'Something went wrong while preparing your order.';
+      setErrorMessage(message);
+      notify({ severity: 'error', message });
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const confirmOrder = async () => {
+    if (!prepared) return;
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const order = await confirmCodOrder(prepared);
+      rememberLastOrder(order);
       setOrderCreated(true);
-      onOrderComplete?.();
-
-      if (data?.orderNumber) {
-        try {
-          localStorage.setItem('fusionLastOrder', JSON.stringify({ orderNumber: data.orderNumber, email: normalizedEmail }));
-        } catch (storageError) {
-          console.warn('Unable to persist last order reference', storageError);
-        }
-      }
-
+      onOrderComplete?.(prepared.body.items.map(item => item.productId));
       notify({ severity: 'success', message: 'Order placed successfully! Redirecting…' });
 
       navigate('/order-success', {
         state: {
-          orderNumber: data?.orderNumber,
-          email: normalizedEmail,
-          estimatedDelivery: data?.estimatedDelivery,
-          items: data?.items,
-          total: data?.total,
+          orderId: order?._id ? String(order._id) : '',
+          orderNumber: order?.orderNumber,
+          email: contactEmail,
+          items: order?.items,
+          total: order?.total,
+          currency: order?.currency,
         },
       });
     } catch (error) {
-      console.error('Error creating order:', error);
-      setLoading(false);
-      const message = error?.normalizedMessage || 'Something went wrong while placing your order.';
+      // A 401 means the token expired between opening the page and submitting, so the form
+      // reverts to asking for a sign-in rather than retrying a request that cannot succeed.
+      if (error?.response?.status === 401) setSignedIn(false);
+      const message = error?.normalizedMessage || error?.message || 'Something went wrong while confirming your order.';
       setErrorMessage(message);
       notify({ severity: 'error', message });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,6 +128,7 @@ function Checkout({ cartItems = [], onOrderComplete }) {
 
   const toggleItem = id => {
     if (!id) return;
+    setPrepared(null);
     setSelectedItems(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -133,6 +141,7 @@ function Checkout({ cartItems = [], onOrderComplete }) {
   };
 
   const toggleAll = () => {
+    setPrepared(null);
     setSelectedItems(prev => {
       if (prev.size === cartItems.length) {
         return new Set();
@@ -151,7 +160,7 @@ function Checkout({ cartItems = [], onOrderComplete }) {
               Checkout
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              You have {itemsToShow.length} item{itemsToShow.length !== 1 ? 's' : ''} selected. Total due ${total.toFixed(2)}.
+              You have {itemsToShow.length} item{itemsToShow.length !== 1 ? 's' : ''} selected. Estimated subtotal PKR {total.toFixed(2)}.
             </Typography>
           </Box>
         </Stack>
@@ -194,7 +203,7 @@ function Checkout({ cartItems = [], onOrderComplete }) {
                       <ListItemAvatar>
                         <Avatar src={item.image} alt={item.name} variant="rounded" />
                       </ListItemAvatar>
-                      <ListItemText primary={item.name} secondary={`$${(item.price || 0).toFixed(2)}`} />
+                      <ListItemText primary={item.name} secondary={`PKR ${(item.price || 0).toFixed(2)}`} />
                     </ListItem>
                   );
                 })}
@@ -220,7 +229,29 @@ function Checkout({ cartItems = [], onOrderComplete }) {
                 {errorMessage}
               </Typography>
             )}
-            <CheckoutForm onSubmit={handleSubmit} submitting={loading} />
+            <CheckoutForm onSubmit={handleSubmit} onChange={() => setPrepared(null)} submitting={loading} signedIn={signedIn} />
+            {prepared?.quote && (
+              <Paper variant="outlined" sx={{ mt: 3, p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Server total
+                </Typography>
+                {[
+                  ['Subtotal', prepared.quote.subtotal],
+                  ['Discount', -prepared.quote.discount],
+                  ['Shipping', prepared.quote.shipping],
+                  ['Tax', prepared.quote.tax],
+                  ['Payable', prepared.quote.total],
+                ].map(([label, amount]) => (
+                  <Stack key={label} direction="row" justifyContent="space-between">
+                    <Typography fontWeight={label === 'Payable' ? 700 : 400}>{label}</Typography>
+                    <Typography fontWeight={label === 'Payable' ? 700 : 400}>PKR {Number(amount).toFixed(2)}</Typography>
+                  </Stack>
+                ))}
+                <Button variant="contained" sx={{ mt: 2 }} disabled={loading} onClick={confirmOrder}>
+                  Confirm COD order
+                </Button>
+              </Paper>
+            )}
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2, color: 'text.secondary' }}>
               <LockIcon fontSize="small" />
               <Typography variant="caption">Cash on Delivery is available. MansooriKart never collects card details directly.</Typography>

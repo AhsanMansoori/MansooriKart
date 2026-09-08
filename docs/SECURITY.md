@@ -1,10 +1,10 @@
 # MansooriKart Security Decisions
 
-- **Authentication:** JWT is a temporary Phase 1 transport, persisted as `mansoorikart_access_token` with migration from legacy keys. The API sends it as `x-auth-token`. The target is secure HttpOnly cookie sessions.
-- **Password reset:** forgot-password responses are generic. A random 256-bit token is generated, only its SHA-256 hash and expiry are persisted, and reset tokens are single-use. A mail adapter must deliver the URL; tokens are never returned by the API or logged.
-- **Development email adapter:** only when `NODE_ENV=development`, the reset URL is emitted through the redacting structured logger for manual local verification. Production does not log reset URLs and needs a provider adapter.
-- **Roles:** public registration always creates `CUSTOMER`. `SUPER_ADMIN` is assigned only by the explicit `npm run admin:bootstrap` command using `SUPER_ADMIN_*` environment variables.
-- **Checkout boundary:** prices and stock are authoritative server data. Card data is forbidden. Phase 1 supports COD only; online payment explicitly reports unavailable until a provider is selected.
-- **CORS and rate limits:** configured origin allow-list; auth endpoints have 15-minute limits. Credentials are not enabled for cross-origin requests.
-- **Logging:** request IDs and structured request metadata are logged. Passwords, tokens, cookies and card-related fields are redacted.
-- **Secrets:** use `MONGO_URI`, `JWT_SECRET`, `FRONTEND_URL`, optional recommendation variables, and bootstrap variables only through environment configuration. Do not commit secrets.
+- The API accepts `Authorization: Bearer <JWT>`. The browser currently stores the token under `mansoorikart_access_token`; XSS-resistant HttpOnly transport is deferred to a later frontend/security phase.
+- Access tokens default to 15 minutes and configuration rejects durations above one hour. There is no refresh endpoint or server-side logout list. Logout removes the browser token; password reset increments the account session version and immediately invalidates earlier tokens.
+- Forgot-password responses do not reveal account existence. Reset tokens are random, hashed at rest, expiring, and consumed by one atomic database update. No email provider is configured yet.
+- Google ID tokens are verified against the configured public client ID. Google subjects are unique, only verified email identities may link, and Google sign-in never grants an administrative role.
+- Public registration always creates `CUSTOMER`. Super Admin accounts are provisioned through the bootstrap command.
+- Prices, charges, availability, discounts, order numbers, costs, roles, and ownership are server-controlled. Public serializers are allowlists.
+- CORS uses exact configured origins and does not enable credentials. Authentication rate limiting is process-local until a shared store is introduced.
+- Transactions require a replica set or sharded MongoDB cluster and abort inventory, orders, purchasing, coupon, return, refund, and audit writes together.

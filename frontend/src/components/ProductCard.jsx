@@ -112,7 +112,7 @@ export default function ProductCard({ product, addToCart }) {
         </Typography>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
           <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
-            ${product.price.toFixed(2)}
+            PKR {product.price.toFixed(2)}
           </Typography>
           {ratingValue !== null && (
             <Stack direction="row" spacing={0.5} alignItems="center">
@@ -125,6 +125,11 @@ export default function ProductCard({ product, addToCart }) {
             </Stack>
           )}
         </Stack>
+        {product?.availability?.canPurchase && typeof product?.stock !== 'number' && (
+          <Typography variant="caption" color="success.main" sx={{ mt: 1, display: 'block' }}>
+            Available from supplier
+          </Typography>
+        )}
         {typeof product?.stock === 'number' && (
           <Typography variant="caption" color={product.stock > 5 ? 'success.main' : 'warning.main'} sx={{ mt: 1, display: 'block' }}>
             {product.stock > 5 ? `${product.stock} in stock` : 'Limited stock available'}
@@ -141,6 +146,7 @@ export default function ProductCard({ product, addToCart }) {
             event.stopPropagation();
             addToCart(product);
           }}
+          disabled={product?.availability?.canPurchase === false}
           sx={{ background: ACCENT_GRADIENT, boxShadow: '0 10px 22px rgba(40,116,240,0.3)', '&:hover': { boxShadow: '0 14px 28px rgba(245,0,87,0.32)' } }}
         >
           Add to Cart

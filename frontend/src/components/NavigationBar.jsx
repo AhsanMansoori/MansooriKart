@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { Menu, Search, ShoppingCart, LogIn, UserPlus, LogOut, X } from 'lucide-react';
 import SearchResults from './SearchResults';
-import { apiClient } from '../services/apiClient';
+import { searchProducts } from '../services/catalog';
+import { clearAccessToken, isAuthenticated } from '../services/authSession';
 import { useNotifier } from '../context/NotificationProvider';
 
 const navLinks = [
@@ -26,8 +27,7 @@ function NavigationBar({ cartItemCount }) {
   const { notify } = useNotifier();
 
   React.useEffect(() => {
-    const checkToken = () =>
-      setIsLoggedIn(Boolean(localStorage.getItem('mansoorikart_access_token') || localStorage.getItem('MERNEcommerceToken') || localStorage.getItem('token')));
+    const checkToken = () => setIsLoggedIn(isAuthenticated());
     checkToken();
     const interval = window.setInterval(checkToken, 2000);
     return () => window.clearInterval(interval);
@@ -39,8 +39,7 @@ function NavigationBar({ cartItemCount }) {
         if (!query.trim()) return setSearchResults([]);
         setLoading(true);
         try {
-          const { data } = await apiClient.get('search', { params: { q: query } });
-          setSearchResults(Array.isArray(data) ? data : []);
+          setSearchResults(await searchProducts(query.trim()));
         } catch {
           setSearchResults([]);
           notify({ severity: 'error', message: 'Search is unavailable right now.' });
@@ -73,9 +72,7 @@ function NavigationBar({ cartItemCount }) {
     window.setTimeout(() => searchInputRef.current?.focus(), 0);
   };
   const logout = () => {
-    localStorage.removeItem('mansoorikart_access_token');
-    localStorage.removeItem('MERNEcommerceToken');
-    localStorage.removeItem('token');
+    clearAccessToken();
     setIsLoggedIn(false);
     notify({ severity: 'success', message: 'Signed out successfully.' });
     navigate('/');
@@ -91,7 +88,7 @@ function NavigationBar({ cartItemCount }) {
   };
 
   return (
-    <header className="sticky top-0 z-40 mb-8 bg-gradient-to-r from-deep-navy via-navy to-[#3154d0] text-white shadow-mk">
+    <header className="sticky top-0 z-40 mb-8 bg-gradient-to-r from-[#18C19F] to-[#8BF3AF] text-white shadow-mk">
       <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <button
           className="rounded p-2 hover:bg-white/15 lg:hidden"

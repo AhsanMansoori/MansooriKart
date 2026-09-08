@@ -1,5 +1,7 @@
 # MansooriKart API Inventory
 
+> Phase I reconciliation: `/api/v1` is the only active API. The JavaScript `/api/*` runtime is removed. Frontend authentication, catalog, cart, checkout, orders and reviews consume v1. `PUT /api/v1/cart/sync` provides retry-safe cross-device union, and `POST /api/v1/checkout/preview` provides the authoritative PKR quote before `POST /api/v1/checkout`. Older “frontend needed” and “legacy unchanged” notes below describe the phase in which a route was introduced; this reconciliation line is authoritative for the current tree.
+
 | Method       | Path                               | Access | Purpose                   | Implemented | Tested                 | Frontend needed |
 | ------------ | ---------------------------------- | ------ | ------------------------- | ----------- | ---------------------- | --------------- |
 | GET          | `/api/v1/health`                   | Public | TypeScript runtime health | Yes         | Legacy regression      | Later           |

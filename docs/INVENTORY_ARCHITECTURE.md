@@ -18,9 +18,9 @@ Inventory movements are immutable evidence. They record the product, warehouse, 
 
 ## Operations
 
-Adjustments atomically condition available stock before decrementing, update the compatibility mirror, and then write a movement. If movement persistence fails, both balance and mirror are compensated. Transfers atomically condition the source decrement, add the destination quantity, write paired `TRANSFER_OUT`/`TRANSFER_IN` movements, and compensate both sides if later persistence fails. Transfers require an `Idempotency-Key`; its unique persisted transfer record is the durable idempotency authority, so repeated and concurrent replays return the original transfer without moving stock or adding a second success audit.
+Adjustments condition available stock, update the compatibility mirror, and write a movement in one MongoDB transaction. Transfers condition the source decrement, add destination quantity, write paired movements, persist the transfer, and audit in the same transaction. The transfer's unique `Idempotency-Key` is its durable replay authority.
 
-Adjustment audit persistence is part of the operation: if its audit write fails after the inventory mutation, a compensating immutable adjustment restores the balance and mirror and the caller receives a safe failure. Transfer persistence failures similarly compensate source and destination balances; no completed transfer record or success audit is retained.
+Audit persistence is part of the operation. Any failure aborts the transaction, so no balance, mirror, movement, transfer, or audit fragment remains and no misleading compensating movement is created.
 
 Low stock is calculated from total product availability across warehouse balances: a product is out of stock when total available is zero, and low stock when total available is greater than zero and less than or equal to `lowStockThreshold` (default 5).
 

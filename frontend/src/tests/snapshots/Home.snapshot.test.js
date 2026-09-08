@@ -13,10 +13,8 @@ jest.mock('../../services/apiClient', () => ({
   API_BASE_URL: 'http://test',
 }));
 
-// ProductCard pulls in useNavigate/images; the carousel measures layout. Stub
-// both so the Home snapshot is deterministic.
+// ProductCard pulls in useNavigate/images. Stub it so the Home snapshot is deterministic.
 jest.mock('../../components/ProductCard', () => ({ product }) => <div data-testid="product-card">{product && product.name}</div>);
-jest.mock('react-material-ui-carousel', () => props => <div data-testid="carousel">{props.children}</div>);
 
 // Banner images -> plain strings (the global identity-obj-proxy mapping yields
 // a Proxy that misbehaves when used as an <img src>).

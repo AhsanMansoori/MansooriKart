@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import express from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../middleware/auth.js';
@@ -5,15 +6,28 @@ import { validate } from '../../middleware/validate.js';
 import { Order } from '../../models/order.js';
 import { Refund } from '../../models/refund.js';
 import { ReturnRequest } from '../../models/return.js';
-import { cancelOrder, checkout, OrderError, requestReturn } from '../../services/orderService.js';
+import { cancelOrder, checkout, previewCheckout, OrderError, requestReturn } from '../../services/orderService.js';
 import { buildInvoice } from '../../services/invoice.js';
 import { renderInvoicePdf } from '../../services/invoicePdf.js';
-import { customerOrder } from '../../serializers/index.js';
+import { customerOrder, customerStatusHistory, customerReturn, customerRefund } from '../../serializers/index.js';
 import { sendFailure, sendSuccess } from '../../utils/api-response.js';
 const router = express.Router();
 const oid = /^[a-f\d]{24}$/i;
 const checkoutBody = z
-  .object({ addressId: z.string().regex(oid), couponCode: z.string().trim().min(2).max(64).optional(), paymentMethod: z.literal('CASH_ON_DELIVERY') })
+  .object({
+    addressId: z.string().regex(oid),
+    couponCode: z.string().trim().min(2).max(64).optional(),
+    paymentMethod: z.literal('CASH_ON_DELIVERY'),
+    items: z
+      .array(z.object({ productId: z.string().regex(oid), quantity: z.number().int().min(1).max(99) }).strict())
+      .min(1)
+      .max(50)
+      .optional(),
+    quoteHash: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+  })
   .strict();
 const params = z.object({ orderId: z.string().regex(oid) }).strict();
 const emptyBody = z.object({}).strict();
@@ -52,6 +66,14 @@ const fail = (e: unknown, r: any, s: any, n: any) =>
       )
     : n(e);
 router.use(requireAuth);
+router.post('/checkout/preview', validate(checkoutBody.omit({ quoteHash: true })), async (r, s, n) => {
+  if (r.auth!.role !== 'CUSTOMER') return sendFailure(s, 403, 'AUTH_FORBIDDEN', 'Only customers may checkout.', r.requestId);
+  try {
+    return sendSuccess(s, await previewCheckout(r.auth!.userId, r.body));
+  } catch (e) {
+    return fail(e, r, s, n);
+  }
+});
 router.post('/checkout', validate(checkoutBody), async (r, s, n) => {
   if (r.auth!.role !== 'CUSTOMER') return sendFailure(s, 403, 'AUTH_FORBIDDEN', 'Only customers may checkout.', r.requestId);
   const key = r.header('idempotency-key');
@@ -87,7 +109,7 @@ router.get('/orders/:orderId/tracking', validate(params, 'params'), async (r, s,
       .select('orderNumber orderStatus statusHistory createdAt updatedAt')
       .lean();
     return order
-      ? sendSuccess(s, { orderNumber: order.orderNumber, currentStatus: order.orderStatus, timeline: order.statusHistory })
+      ? sendSuccess(s, { orderNumber: order.orderNumber, currentStatus: order.orderStatus, timeline: customerStatusHistory(order.statusHistory) })
       : sendFailure(s, 404, 'ORDER_NOT_FOUND', 'Order not found.', r.requestId);
   } catch (e) {
     return n(e);
@@ -118,14 +140,24 @@ router.get('/orders/:orderId/invoice.pdf', validate(params, 'params'), async (r,
 });
 router.post('/orders/:orderId/returns', validate(params, 'params'), validate(returnBody), async (r, s, n) => {
   try {
-    return sendSuccess(s, await requestReturn(r.auth!.userId, String(r.params.orderId), r.body, r.requestId), 201);
+    return sendSuccess(s, customerReturn(await requestReturn(r.auth!.userId, String(r.params.orderId), r.body, r.requestId)), 201);
   } catch (e) {
     return fail(e, r, s, n);
   }
 });
-router.get('/returns', async (r, s, n) => {
+router.get('/returns', validate(listQuery.omit({ status: true }), 'query'), async (r, s, n) => {
   try {
-    return sendSuccess(s, await ReturnRequest.find({ customer: r.auth!.userId }).sort({ createdAt: -1 }).lean());
+    const { page, limit } = r.query as any;
+    const filter = { customer: r.auth!.userId };
+    const [records, total] = await Promise.all([
+      ReturnRequest.find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      ReturnRequest.countDocuments(filter),
+    ]);
+    return sendSuccess(s, records.map(customerReturn), 200, { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (e) {
     return n(e);
   }
@@ -133,20 +165,29 @@ router.get('/returns', async (r, s, n) => {
 router.get('/returns/:orderId', validate(params, 'params'), async (r, s, n) => {
   try {
     const record = await ReturnRequest.findOne({ _id: r.params.orderId, customer: r.auth!.userId }).lean();
-    return record ? sendSuccess(s, record) : sendFailure(s, 404, 'RETURN_NOT_FOUND', 'Return not found.', r.requestId);
+    return record ? sendSuccess(s, customerReturn(record)) : sendFailure(s, 404, 'RETURN_NOT_FOUND', 'Return not found.', r.requestId);
   } catch (e) {
     return n(e);
   }
 });
-router.get('/refunds', async (r, s, n) => {
+router.get('/refunds', validate(listQuery.omit({ status: true }), 'query'), async (r, s, n) => {
   try {
-    const orders = await Order.find({ customer: r.auth!.userId }).select('_id').lean();
-    return sendSuccess(
-      s,
-      await Refund.find({ order: { $in: orders.map((x: any) => x._id) } })
-        .sort({ createdAt: -1 })
-        .lean()
-    );
+    const { page, limit } = r.query as any;
+    const [result] = await Refund.aggregate([
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'order',
+          foreignField: '_id',
+          as: 'ownedOrder',
+          pipeline: [{ $match: { customer: new Types.ObjectId(r.auth!.userId) } }, { $project: { _id: 1 } }],
+        },
+      },
+      { $match: { 'ownedOrder.0': { $exists: true } } },
+      { $facet: { records: [{ $sort: { createdAt: -1, _id: -1 } }, { $skip: (page - 1) * limit }, { $limit: limit }], count: [{ $count: 'total' }] } },
+    ]);
+    const total = result?.count[0]?.total ?? 0;
+    return sendSuccess(s, (result?.records ?? []).map(customerRefund), 200, { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (e) {
     return n(e);
   }

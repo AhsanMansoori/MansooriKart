@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { CSV_LIMITS, PLACEHOLDER_IMAGE_URL, SUPPLIER_STOCK_STALE_AFTER_HOURS } from '../src/config/dropshipping.js';
@@ -550,6 +550,21 @@ test('supplier CSV import creates DRAFT products only, is bounded, deterministic
     assert.equal(pagedRows.body.meta.total, 10);
     assert.equal(pagedRows.body.data[0].rowNumber, 6, 'row diagnostics page in stable row order');
     assert.equal((await request(app).get(`/api/v1/admin/catalog-imports/${bad.jobId}/rows?limit=999`).set(auth)).status, 400);
+    const stale = await CatalogImportJob.create({
+      jobNumber: 'IMP-STALE-1',
+      supplier: supplier._id,
+      fileName: 'interrupted.csv',
+      fileSize: 12,
+      status: 'IMPORTING',
+      startedAt: new Date(Date.now() - 61 * 60 * 1000),
+      createdBy: admin._id,
+    });
+    response = await request(app).post(`/api/v1/admin/catalog-imports/${stale._id}/import`).set(auth).send({});
+    assert.equal(response.status, 200);
+    assert.equal(response.body.data.replayed, true);
+    assert.equal(response.body.data.job.status, 'FAILED');
+    assert.equal(response.body.data.job.errorSummary[0].code, 'IMPORT_INTERRUPTED');
+    assert.equal(await AuditLog.countDocuments({ resourceId: String(stale._id), action: 'CATALOG_IMPORT_STALE_RECOVERED' }), 1);
   } finally {
     await mongoose.disconnect();
     await mongo.stop();

@@ -22,7 +22,7 @@ import Privacy from './pages/Privacy';
 import ShippingReturns from './pages/ShippingReturns';
 import OrderTracking from './pages/OrderTracking';
 import ScrollToTop from './components/ScrollToTop';
-import { apiClient, withRetry } from './services/apiClient';
+import { fetchAllProducts } from './services/catalog';
 import { useNotifier } from './context/NotificationProvider';
 
 const theme = createTheme({
@@ -124,18 +124,7 @@ function App() {
     const fetchProducts = async () => {
       setError(null);
       try {
-        const { data } = await withRetry(() => apiClient.get('products'));
-        if (!Array.isArray(data)) {
-          throw new Error('Unexpected products response.');
-        }
-        const normalized = data.map(product => {
-          const canonicalId = product?._id || product?.id;
-          return {
-            ...product,
-            _id: canonicalId,
-            id: canonicalId,
-          };
-        });
+        const normalized = await fetchAllProducts();
         if (active) {
           setProducts(normalized);
 
@@ -197,10 +186,14 @@ function App() {
     [notify]
   );
 
-  const handleOrderComplete = React.useCallback(() => {
-    setCart([]);
-    notify({ severity: 'success', message: 'Thank you for your order!' });
-  }, [notify]);
+  const handleOrderComplete = React.useCallback(
+    purchasedIds => {
+      const completed = new Set(purchasedIds || []);
+      setCart(current => current.filter(item => !completed.has(item.id || item._id)));
+      notify({ severity: 'success', message: 'Thank you for your order!' });
+    },
+    [notify]
+  );
 
   return (
     <ThemeProvider theme={theme}>

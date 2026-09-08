@@ -23,7 +23,7 @@ describe('Checkout payment contract', () => {
       </MemoryRouter>
     );
     expect(screen.getByRole('radio', { name: /cash on delivery/i })).toBeChecked();
-    expect(screen.getByRole('button', { name: /place cod order/i })).toBeInTheDocument();
     expect(screen.queryByLabelText(/card number|cvc|expiry/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /review cod order/i })).toBeInTheDocument();
   });
 });

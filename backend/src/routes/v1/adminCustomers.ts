@@ -1,3 +1,4 @@
+import { REALIZED_ORDER } from '../../services/financeService.js';
 import { Router, type NextFunction, type Response } from 'express';
 import { Types } from 'mongoose';
 import { z } from 'zod';
@@ -58,7 +59,7 @@ const serializeCustomer = (document: any) => ({
 });
 
 /** Revenue-bearing statuses. A cancelled order is never lifetime value. */
-const REALIZED = { orderStatus: 'DELIVERED', paymentStatus: 'PAID' };
+const REALIZED = { ...REALIZED_ORDER };
 
 /**
  * Derives a customer segment from real order history only. Segments are
@@ -97,7 +98,12 @@ const orderStatsLookup = [
                   $filter: {
                     input: '$orderStats',
                     as: 'o',
-                    cond: { $and: [{ $eq: ['$$o.orderStatus', REALIZED.orderStatus] }, { $eq: ['$$o.paymentStatus', REALIZED.paymentStatus] }] },
+                    cond: {
+                      $and: [
+                        { $or: REALIZED.orderStatus.$in.map(status => ({ $eq: ['$$o.orderStatus', status] })) },
+                        { $or: REALIZED.paymentStatus.$in.map(status => ({ $eq: ['$$o.paymentStatus', status] })) },
+                      ],
+                    },
                   },
                 },
                 as: 'o',

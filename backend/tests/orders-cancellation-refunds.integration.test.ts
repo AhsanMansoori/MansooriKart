@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { Address } from '../src/models/address.js';
@@ -205,6 +205,16 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
     const failing = await postRefund('refund-release-key', 50);
     assert.equal(failing.status, 201);
     assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1250);
+    const failureRace = await Promise.all([
+      request(app).patch(`/api/v1/admin/refunds/${failing.body.data._id}/status`).set('Authorization', `Bearer ${st}`).send({ status: 'FAILED' }),
+      request(app).patch(`/api/v1/admin/refunds/${failing.body.data._id}/status`).set('Authorization', `Bearer ${st}`).send({ status: 'FAILED' }),
+    ]);
+    assert.deepEqual(
+      failureRace.map(response => response.status),
+      [200, 200]
+    );
+    assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1200);
+    assert.equal(await AuditLog.countDocuments({ resourceId: String(failing.body.data._id), action: 'REFUND_STATUS_UPDATED' }), 1);
     assert.equal(
       (await request(app).patch(`/api/v1/admin/refunds/${failing.body.data._id}/status`).set('Authorization', `Bearer ${st}`).send({ status: 'FAILED' }))
         .status,

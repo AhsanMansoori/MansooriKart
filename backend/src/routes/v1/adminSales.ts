@@ -1,3 +1,4 @@
+import { REALIZED_ORDER, REALIZED_EXPRESSION } from '../../services/financeService.js';
 import express from 'express';
 import { z } from 'zod';
 import { requireAuth, requireSuperAdmin } from '../../middleware/auth.js';
@@ -19,7 +20,7 @@ router.get('/sales/dashboard', validate(range, 'query'), async (r, s, n) => {
     const base = { createdAt: { $gte: start, $lte: end } };
     const [orders, realized, cancelled, returns, refunds, topProducts, recent] = await Promise.all([
       Order.aggregate([{ $match: base }, { $group: { _id: null, count: { $sum: 1 }, gross: { $sum: '$total' }, average: { $avg: '$total' } } }]),
-      Order.aggregate([{ $match: { ...base, orderStatus: 'DELIVERED', paymentStatus: 'PAID' } }, { $group: { _id: null, value: { $sum: '$total' } } }]),
+      Order.aggregate([{ $match: { ...base, ...REALIZED_ORDER } }, { $group: { _id: null, value: { $sum: '$total' } } }]),
       Order.countDocuments({ ...base, orderStatus: 'CANCELLED' }),
       Order.countDocuments({ ...base, orderStatus: { $in: ['RETURN_REQUESTED', 'RETURN_APPROVED', 'RETURNED'] } }),
       Refund.aggregate([{ $match: { createdAt: base.createdAt, status: { $ne: 'FAILED' } } }, { $group: { _id: null, value: { $sum: '$amount' } } }]),
@@ -68,7 +69,7 @@ router.get('/sales/analytics', validate(range, 'query'), async (r, s, n) => {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
             orders: { $sum: 1 },
             grossSales: { $sum: '$total' },
-            realizedRevenue: { $sum: { $cond: [{ $and: [{ $eq: ['$orderStatus', 'DELIVERED'] }, { $eq: ['$paymentStatus', 'PAID'] }] }, '$total', 0] } },
+            realizedRevenue: { $sum: { $cond: [REALIZED_EXPRESSION, '$total', 0] } },
           },
         },
         { $sort: { _id: 1 } },

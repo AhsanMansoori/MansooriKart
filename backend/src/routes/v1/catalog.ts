@@ -1,3 +1,4 @@
+import { withAvailability } from '../../services/productAvailability.js';
 import express from 'express';
 import { z } from 'zod';
 import { Brand } from '../../models/brand.js';
@@ -78,7 +79,7 @@ router.get('/products', validate(querySchema, 'query'), async (request, response
       Product.countDocuments(filter),
     ]);
     const totalPages = Math.max(1, Math.ceil(total / query.limit));
-    return sendSuccess(response, data.map(serialize.product), 200, {
+    return sendSuccess(response, (await withAvailability(data)).map(serialize.product), 200, {
       page: query.page,
       limit: query.limit,
       total,
@@ -98,7 +99,9 @@ router.get('/products/:identifier', async (request, response, next) => {
       ...publicFilter,
       $and: [{ $or: [{ slug: identifier.toLowerCase() }, ...(isId ? [{ _id: identifier }] : [])] }],
     }).lean();
-    return item ? sendSuccess(response, serialize.product(item)) : sendFailure(response, 404, 'PRODUCT_NOT_FOUND', 'Product not found', request.requestId);
+    return item
+      ? sendSuccess(response, serialize.product((await withAvailability([item]))[0]))
+      : sendFailure(response, 404, 'PRODUCT_NOT_FOUND', 'Product not found', request.requestId);
   } catch (error) {
     return next(error);
   }

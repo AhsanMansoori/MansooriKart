@@ -1,3 +1,4 @@
+import { REALIZED_EXPRESSION } from '../../services/financeService.js';
 import { Router, type NextFunction, type Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireSuperAdmin } from '../../middleware/auth.js';
@@ -116,7 +117,7 @@ router.get('/reports/sales', validate(rangeOnly, 'query'), async (request: any, 
           $group: {
             _id: null,
             unitsSold: { $sum: '$items.quantity' },
-            realizedUnits: { $sum: { $cond: [{ $and: [{ $eq: ['$orderStatus', 'DELIVERED'] }, { $eq: ['$paymentStatus', 'PAID'] }] }, '$items.quantity', 0] } },
+            realizedUnits: { $sum: { $cond: [REALIZED_EXPRESSION, '$items.quantity', 0] } },
           },
         },
       ]),
@@ -133,7 +134,7 @@ router.get('/reports/sales', validate(rangeOnly, 'query'), async (request: any, 
             unitsSold: { $sum: '$items.quantity' },
             grossRevenue: { $sum: '$items.lineSubtotal' },
             realizedRevenue: {
-              $sum: { $cond: [{ $and: [{ $eq: ['$orderStatus', 'DELIVERED'] }, { $eq: ['$paymentStatus', 'PAID'] }] }, '$items.lineSubtotal', 0] },
+              $sum: { $cond: [REALIZED_EXPRESSION, '$items.lineSubtotal', 0] },
             },
           },
         },
@@ -199,7 +200,7 @@ router.get('/reports/products', validate(productReportQuery, 'query'), async (re
     const query = request.query as z.infer<typeof productReportQuery>;
     const range = resolveRange(query);
     const realized = {
-      $cond: [{ $and: [{ $eq: ['$orderStatus', 'DELIVERED'] }, { $eq: ['$paymentStatus', 'PAID'] }] }, 1, 0],
+      $cond: [REALIZED_EXPRESSION, 1, 0],
     };
     const pipeline: Record<string, unknown>[] = [
       { $match: { createdAt: { $gte: range.from, $lte: range.to } } },
@@ -479,7 +480,7 @@ router.get('/reports/customers', validate(customerReportQuery, 'query'), async (
   try {
     const query = request.query as z.infer<typeof customerReportQuery>;
     const range = resolveRange(query);
-    const realized = { $cond: [{ $and: [{ $eq: ['$orderStatus', 'DELIVERED'] }, { $eq: ['$paymentStatus', 'PAID'] }] }, 1, 0] };
+    const realized = { $cond: [REALIZED_EXPRESSION, 1, 0] };
     const [facet, newCustomers, totalCustomers] = await Promise.all([
       Order.aggregate([
         { $match: { createdAt: { $gte: range.from, $lte: range.to } } },

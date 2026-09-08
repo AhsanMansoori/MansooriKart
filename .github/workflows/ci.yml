@@ -41,8 +41,5 @@ jobs:
       - name: Build frontend and backend
         run: npm run build
 
-      - name: Run legacy backend tests
+      - name: Run backend integration tests
         run: npm run test:backend
-
-      - name: Run v1 integration tests
-        run: npm run test:v1

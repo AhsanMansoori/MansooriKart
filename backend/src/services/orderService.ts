@@ -1,3 +1,5 @@
+import { withAvailability } from './productAvailability.js';
+import { atomic, afterCommit, rethrowTransient } from './transaction.js';
 import crypto from 'node:crypto';
 import { Types } from 'mongoose';
 import { BLOCKING_SUPPLIER_AVAILABILITY } from '../config/dropshipping.js';
@@ -12,14 +14,7 @@ import { Refund } from '../models/refund.js';
 import { ReturnRequest } from '../models/return.js';
 import { ReturnAllocation } from '../models/returnAllocation.js';
 import { SupplierCatalogItem } from '../models/supplierCatalogItem.js';
-import {
-  cancelFulfillmentsForOrder,
-  createFulfillments,
-  DropshipError,
-  preferredSupplierSource,
-  removeFulfillmentsForOrder,
-  type DropshipLine,
-} from './dropshipService.js';
+import { cancelFulfillmentsForOrder, createFulfillments, DropshipError, preferredSupplierSource, type DropshipLine } from './dropshipService.js';
 import { adjustStock, InventoryError } from './inventoryService.js';
 import { computeTax, getStoreConfiguration, isCashOnDeliveryAllowed, quoteShipping } from './storeConfigService.js';
 import { sendOrderConfirmation } from './transactionalEmail.js';
@@ -77,26 +72,36 @@ async function couponFor(customer: string, code: string | undefined, subtotal: n
   return { coupon, discount, snapshot: { couponId: coupon._id, code: coupon.code, type: coupon.type, value: coupon.value, actualDiscount: discount } };
 }
 
-export async function checkout(
-  customer: string,
-  input: { addressId: string; couponCode?: string; idempotencyKey: string; paymentMethod: 'CASH_ON_DELIVERY' },
-  requestId?: string
-) {
-  const existing = await Order.findOne({ customer, idempotencyKey: input.idempotencyKey }).lean();
-  if (existing) return existing;
-  const [cart, address, storeConfig] = await Promise.all([
-    Cart.findOne({ user: customer }).lean(),
-    Address.findOne({ _id: input.addressId, user: customer }).lean(),
-    getStoreConfiguration(),
-  ]);
+export type CheckoutInput = {
+  addressId: string;
+  couponCode?: string;
+  paymentMethod: 'CASH_ON_DELIVERY';
+  items?: Array<{ productId: string; quantity: number }>;
+  quoteHash?: string;
+};
+async function prepareCheckout(customer: string, input: CheckoutInput) {
+  const cart = await Cart.findOne({ user: customer }).lean();
+  const address = await Address.findOne({ _id: input.addressId, user: customer }).lean();
+  const storeConfig = await getStoreConfiguration();
   if (!address) throw new OrderError('ADDRESS_NOT_FOUND', 'Address not found.');
   if (!cart?.items?.length) throw new OrderError('CART_EMPTY', 'Cart is empty.');
+  if (input.items) {
+    if (!input.items.length || new Set(input.items.map(item => item.productId)).size !== input.items.length)
+      throw new OrderError('CART_SELECTION_INVALID', 'Select unique cart items.');
+    cart.items = input.items.map(item => {
+      const stored = cart.items.find((line: any) => String(line.product) === item.productId);
+      if (!stored || item.quantity > stored.quantity || item.quantity < 1)
+        throw new OrderError('CART_SELECTION_CHANGED', 'Your cart changed. Please review it again.');
+      return { product: stored.product, quantity: item.quantity };
+    });
+  }
+
   // Cash on delivery is the only payment method MansooriKart offers, so an operator who
   // switches it off is deliberately closing checkout. Enabled by default, which is the
   // behaviour every existing order was placed under.
   if (!isCashOnDeliveryAllowed(storeConfig)) throw new OrderError('PAYMENT_METHOD_UNAVAILABLE', 'Cash on delivery is currently unavailable.');
   const ids = cart.items.map((i: any) => i.product);
-  const products = await Product.find({ _id: { $in: ids }, status: 'ACTIVE' }).lean();
+  const products = await withAvailability(await Product.find({ _id: { $in: ids }, status: 'ACTIVE' }).lean());
   const byId = new Map<string, any>(products.map((p: any) => [String(p._id), p]));
   // Dropship lines are backed by a supplier source, not by warehouse stock, so the
   // governing source is resolved once for the whole cart and snapshotted per line.
@@ -122,7 +127,7 @@ export async function checkout(
     // Own stock is still governed by the warehouse balance mirrored on the product;
     // that check and its InventoryMovement trail are untouched by dropshipping (§39).
     if (fulfillmentType === 'OWN_STOCK') {
-      if (entry.quantity > product.stock) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
+      if (entry.quantity > product.publicAvailability.availableStock) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
     } else {
       // A dropship line needs somebody to ship it, and an explicit OUT_OF_STOCK feed
       // blocks. UNKNOWN or stale-but-positive stock does not: a CSV feed that reports
@@ -164,7 +169,36 @@ export async function checkout(
   const shipping = quoteShipping(storeConfig, discountedSubtotal, (address as any).city),
     tax = computeTax(storeConfig, discountedSubtotal),
     total = money(Math.max(0, discountedSubtotal + shipping + tax));
-  const deducted: any[] = [];
+  const quote = {
+    currency: 'PKR',
+    subtotal,
+    discount: couponInfo.discount,
+    shipping,
+    tax,
+    total,
+    items: items.map((item: any) => ({
+      productId: String(item.productId),
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineSubtotal: item.lineSubtotal,
+    })),
+  };
+  const quoteHash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify({ addressId: input.addressId, couponCode: input.couponCode, ...quote }))
+    .digest('hex');
+  return { items, address, couponInfo, subtotal, shipping, tax, total, quote: { ...quote, quoteHash } };
+}
+
+export const previewCheckout = (customer: string, input: CheckoutInput) => atomic(async () => (await prepareCheckout(customer, input)).quote);
+
+async function checkoutImpl(customer: string, input: CheckoutInput & { idempotencyKey: string }, requestId?: string) {
+  const existing = await Order.findOne({ customer, idempotencyKey: input.idempotencyKey }).lean();
+  if (existing) return existing;
+  const { items, address, couponInfo, subtotal, shipping, tax, total, quote } = await prepareCheckout(customer, input);
+  if (input.quoteHash && input.quoteHash !== quote.quoteHash)
+    throw new OrderError('CHECKOUT_QUOTE_CHANGED', 'Prices or charges changed. Please review the total again.');
   let created: any;
   try {
     for (const item of items) {
@@ -179,7 +213,6 @@ export async function checkout(
         requestId,
         type: 'ORDER',
       });
-      deducted.push(item);
     }
     const number = orderNumber();
     created = await Order.create({
@@ -220,31 +253,21 @@ export async function checkout(
       requestId,
       metadata: { orderNumber: created.orderNumber, total },
     });
-    await Cart.updateOne({ user: customer }, { $set: { items: [] } });
+    const cart = await Cart.findOne({ user: customer });
+    if (cart) {
+      cart.items = cart.items
+        .map((line: any) => ({
+          product: line.product,
+          quantity: line.quantity - (items.find((item: any) => String(item.productId) === String(line.product))?.quantity ?? 0),
+        }))
+        .filter((line: any) => line.quantity > 0);
+      await cart.save();
+    }
     // Delivery is deliberately post-commit: a provider failure cannot invalidate a paid business operation.
-    void sendOrderConfirmation(created.toObject()).catch(() => undefined);
+    afterCommit(() => sendOrderConfirmation(created.toObject()));
     return created.toObject();
   } catch (error: any) {
-    if (created) {
-      await Order.deleteOne({ _id: created._id });
-      await CouponRedemption.deleteOne({ order: created._id });
-      // Supplier obligations must not outlive the order they belonged to.
-      await removeFulfillmentsForOrder(created._id).catch(() => undefined);
-      if (couponInfo.coupon) await Coupon.updateOne({ _id: couponInfo.coupon._id, usageCount: { $gt: 0 } }, { $inc: { usageCount: -1 } });
-    }
-    for (const item of deducted.reverse())
-      await adjustStock({
-        productId: String(item.productId),
-        quantityDelta: item.quantity,
-        reason: 'Checkout compensation',
-        actor: customer,
-        requestId,
-        type: 'CANCELLATION',
-      }).catch(() => undefined);
-    if (error?.code === 11000) {
-      const replay = await Order.findOne({ customer, idempotencyKey: input.idempotencyKey }).lean();
-      if (replay) return replay;
-    }
+    rethrowTransient(error);
     if (error instanceof OrderError) throw error;
     if (error instanceof InventoryError) throw new OrderError('STOCK_UNAVAILABLE', 'A cart item is unavailable.');
     if (error instanceof DropshipError) throw new OrderError('DROPSHIP_UNAVAILABLE', 'A dropship item could not be routed to a supplier.');
@@ -252,7 +275,7 @@ export async function checkout(
   }
 }
 
-export async function cancelOrder(customer: string, id: string, requestId?: string, actor = customer, byAdmin = false) {
+async function cancelOrderImpl(customer: string, id: string, requestId?: string, actor = customer, byAdmin = false) {
   const scope: Record<string, unknown> = byAdmin ? { _id: id } : { _id: id, customer };
   // Atomically claim the cancellation. Only one concurrent caller (customer or admin) can move an
   // eligible order to CANCELLED, so the inventory restore below runs exactly once per order.
@@ -321,7 +344,7 @@ export async function cancelOrder(customer: string, id: string, requestId?: stri
   return claimed;
 }
 
-export async function updateOrderStatus(id: string, nextStatus: string, actor: string, reason: string, requestId?: string) {
+async function updateOrderStatusImpl(id: string, nextStatus: string, actor: string, reason: string, requestId?: string) {
   const order = await Order.findById(id);
   if (!order) throw new OrderError('ORDER_NOT_FOUND', 'Order not found.');
   const from = order.orderStatus;
@@ -340,7 +363,7 @@ export async function updateOrderStatus(id: string, nextStatus: string, actor: s
   return order;
 }
 
-export async function updatePaymentStatus(id: string, nextStatus: string, actor: string, reason: string, requestId?: string) {
+async function updatePaymentStatusImpl(id: string, nextStatus: string, actor: string, reason: string, requestId?: string) {
   const order = await Order.findById(id);
   if (!order) throw new OrderError('ORDER_NOT_FOUND', 'Order not found.');
   if (!(paymentTransitions[order.paymentStatus] || []).includes(nextStatus))
@@ -369,7 +392,7 @@ const returnTransitions: Record<string, string[]> = {
   COMPLETED: [],
 };
 
-export async function requestReturn(
+async function requestReturnImpl(
   customer: string,
   orderId: string,
   input: { items: { productId: string; quantity: number }[]; reason: string },
@@ -381,50 +404,24 @@ export async function requestReturn(
   const totals = new Map<string, number>();
   for (const line of input.items) totals.set(line.productId, (totals.get(line.productId) || 0) + line.quantity);
   if (totals.size !== input.items.length) throw new OrderError('RETURN_ITEMS_DUPLICATE', 'Return items must be unique.');
-  const reserved: { productId: string; quantity: number }[] = [];
   for (const [productId, quantity] of totals) {
     const ordered = order.items.find((item: any) => String(item.productId) === productId)?.quantity || 0;
     if (!ordered || quantity > ordered) throw new OrderError('RETURN_QUANTITY_INVALID', 'Return quantity exceeds purchased quantity.');
     const filter = { order: orderId, product: productId, requestedQuantity: { $lte: ordered - quantity } };
-    let allocation: any;
-    try {
-      allocation = await ReturnAllocation.findOneAndUpdate(
-        filter,
-        { $setOnInsert: { orderedQuantity: ordered }, $inc: { requestedQuantity: quantity } },
-        { new: true, upsert: true }
-      );
-    } catch (error: any) {
-      if (error?.code === 11000) allocation = await ReturnAllocation.findOneAndUpdate(filter, { $inc: { requestedQuantity: quantity } }, { new: true });
-      else throw error;
-    }
-    if (!allocation) {
-      for (const item of reserved)
-        await ReturnAllocation.updateOne(
-          { order: orderId, product: item.productId, requestedQuantity: { $gte: item.quantity } },
-          { $inc: { requestedQuantity: -item.quantity } }
-        );
-      throw new OrderError('RETURN_QUANTITY_INVALID', 'Return quantity exceeds purchased quantity.');
-    }
-    reserved.push({ productId, quantity });
+    const existingAllocation = await ReturnAllocation.findOne({ order: orderId, product: productId });
+    const allocation = existingAllocation
+      ? await ReturnAllocation.findOneAndUpdate(filter, { $inc: { requestedQuantity: quantity } }, { new: true })
+      : await ReturnAllocation.create({ order: orderId, product: productId, orderedQuantity: ordered, requestedQuantity: quantity });
+    if (!allocation) throw new OrderError('RETURN_QUANTITY_INVALID', 'Return quantity exceeds purchased quantity.');
   }
-  let record: any;
-  try {
-    record = await ReturnRequest.create({
-      returnNumber: sequence('RET'),
-      order: orderId,
-      customer,
-      items: input.items,
-      reason: input.reason,
-      history: [{ from: null, to: 'REQUESTED', reason: input.reason, actor: customer, requestId }],
-    });
-  } catch (error) {
-    for (const item of reserved)
-      await ReturnAllocation.updateOne(
-        { order: orderId, product: item.productId, requestedQuantity: { $gte: item.quantity } },
-        { $inc: { requestedQuantity: -item.quantity } }
-      );
-    throw error;
-  }
+  const record = await ReturnRequest.create({
+    returnNumber: sequence('RET'),
+    order: orderId,
+    customer,
+    items: input.items,
+    reason: input.reason,
+    history: [{ from: null, to: 'REQUESTED', reason: input.reason, actor: customer, requestId }],
+  });
   await AuditLog.create({
     actor: customer,
     action: 'RETURN_REQUESTED',
@@ -436,7 +433,7 @@ export async function requestReturn(
   return record;
 }
 
-export async function updateReturnStatus(id: string, status: string, actor: string, reason: string, requestId?: string) {
+async function updateReturnStatusImpl(id: string, status: string, actor: string, reason: string, requestId?: string) {
   const record = await ReturnRequest.findById(id);
   if (!record) throw new OrderError('RETURN_NOT_FOUND', 'Return not found.');
   const from = record.status;
@@ -462,7 +459,7 @@ export async function updateReturnStatus(id: string, status: string, actor: stri
   return record;
 }
 
-export async function createRefund(
+async function createRefundImpl(
   orderId: string,
   actor: string,
   input: { amount: number; reason: string; idempotencyKey: string; returnId?: string },
@@ -502,20 +499,15 @@ export async function createRefund(
       metadata: { orderId, amount },
     });
     return refund;
-  } catch (error: any) {
-    // Release the reservation so a failed or duplicate attempt never consumes refundable headroom.
-    await Order.updateOne({ _id: order._id }, { $inc: { refundedTotal: -amount } });
-    if (error?.code === 11000) {
-      const existing = await Refund.findOne({ order: orderId, idempotencyKey: input.idempotencyKey }).lean();
-      if (existing) return existing;
-    }
+  } catch (error) {
     throw error;
   }
 }
 const refundTransitions: Record<string, string[]> = { PENDING: ['APPROVED', 'FAILED'], APPROVED: ['COMPLETED', 'FAILED'], COMPLETED: [], FAILED: [] };
-export async function updateRefundStatus(id: string, status: string, actor: string, requestId?: string) {
+async function updateRefundStatusImpl(id: string, status: string, actor: string, requestId?: string) {
   const refund = await Refund.findById(id);
   if (!refund) throw new OrderError('REFUND_NOT_FOUND', 'Refund not found.');
+  if (refund.status === status) return refund;
   if (!(refundTransitions[refund.status] || []).includes(status)) throw new OrderError('REFUND_TRANSITION_INVALID', 'Refund transition is invalid.');
   const from = refund.status;
   refund.status = status;
@@ -534,3 +526,19 @@ export async function updateRefundStatus(id: string, status: string, actor: stri
   return refund;
 }
 export { transitions, paymentTransitions };
+
+export const checkout = (...args: Parameters<typeof checkoutImpl>) => atomic(() => checkoutImpl(...args));
+
+export const cancelOrder = (...args: Parameters<typeof cancelOrderImpl>) => atomic(() => cancelOrderImpl(...args));
+
+export const updateOrderStatus = (...args: Parameters<typeof updateOrderStatusImpl>) => atomic(() => updateOrderStatusImpl(...args));
+
+export const updatePaymentStatus = (...args: Parameters<typeof updatePaymentStatusImpl>) => atomic(() => updatePaymentStatusImpl(...args));
+
+export const requestReturn = (...args: Parameters<typeof requestReturnImpl>) => atomic(() => requestReturnImpl(...args));
+
+export const updateReturnStatus = (...args: Parameters<typeof updateReturnStatusImpl>) => atomic(() => updateReturnStatusImpl(...args));
+
+export const createRefund = (...args: Parameters<typeof createRefundImpl>) => atomic(() => createRefundImpl(...args));
+
+export const updateRefundStatus = (...args: Parameters<typeof updateRefundStatusImpl>) => atomic(() => updateRefundStatusImpl(...args));

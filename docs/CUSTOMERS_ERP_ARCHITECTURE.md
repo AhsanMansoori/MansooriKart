@@ -3,8 +3,7 @@
 Phase E, Part A: Super Admin visibility over real customer accounts, their real order
 history, read-only segmentation, and one narrowly-scoped account-status mutation.
 Everything below describes the implemented `/api/v1` runtime
-(`backend/src/routes/v1/adminCustomers.ts`). The frozen legacy `/api/*` runtime is
-untouched, and no frontend was built in this phase.
+(`backend/src/routes/v1/adminCustomers.ts`). The removed legacy `/api/*` runtime has no active consumer.
 
 ## 1. No duplicate customer entity
 

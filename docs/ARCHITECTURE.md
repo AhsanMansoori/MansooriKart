@@ -1,15 +1,5 @@
-# MansooriKart Architecture
+# MansooriKart Architecture Index
 
-## Current
+The current system overview is [BACKEND_ARCHITECTURE.md](./BACKEND_ARCHITECTURE.md). Domain details are split across the other `*_ARCHITECTURE.md` files in this directory. Historical Fusion and takeover material is explicitly archived under `legacy/`.
 
-React 18 + Vite with an incremental TypeScript and Tailwind foundation; Express JavaScript + MongoDB/Mongoose backend. MUI remains temporarily while features migrate.
-
-## Target
-
-- Web: React, Vite, TypeScript, Tailwind, React Router, TanStack Query, React Hook Form, Zod, Motion, Lucide.
-- API: Express and TypeScript with MongoDB/Mongoose.
-- Administration: one Super Admin application, never separate finance/operations dashboards.
-
-## Migration boundary
-
-Phase 1 prioritizes backend security and transaction integrity over a TypeScript rewrite. New user interface work uses Tailwind tokens; existing MUI screens remain functional until replaced feature by feature. The backend will move toward `config`, `controllers`, `middleware`, `models`, `routes`, `services`, `utils`, and `validators` without a wholesale rewrite.
+The frontend remains React 18 with Vite and Material UI during the staged UI migration. The backend is entirely the TypeScript `/api/v1` runtime. MongoDB transactions are a deployment requirement for multi-record commerce operations.

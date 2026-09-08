@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { Product } from '../src/models/product.js';
@@ -149,6 +149,20 @@ test('cart lifecycle and guest merge are server-authoritative', async () => {
       });
     assert.equal(res.status, 200);
     assert.equal(res.body.data.items.length, 2);
+    const syncBody = { items: [{ productId: String(product._id), quantity: 1 }] };
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      res = await request(app).put('/api/v1/cart/sync').set('Authorization', `Bearer ${token}`).set('Idempotency-Key', 'cart-sync-replay').send(syncBody);
+      assert.equal(res.status, 200);
+      assert.equal(res.body.data.items.length, 2, 'sync preserves an existing line from another device');
+    }
+    const synced = res.body.data.items.find((line: any) => String(line.product.id) === String(product._id));
+    assert.equal(synced.quantity, 1, 'replaying sync does not add quantity twice');
+    res = await request(app)
+      .put('/api/v1/cart/sync')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'cart-sync-replay')
+      .send({ items: [{ productId: String(product._id), quantity: 2 }] });
+    assert.equal(res.status, 409, 'one key cannot be reused for a different selection');
     for (const productId of ['bad-id', '000000000000000000000000', String(inactive._id)]) {
       res = await request(app)
         .post('/api/v1/cart/merge')

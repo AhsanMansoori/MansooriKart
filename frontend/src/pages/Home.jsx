@@ -11,8 +11,6 @@ import {
   Paper,
   Pagination,
   Stack,
-  Link,
-  Collapse,
   Chip,
   Divider,
   Avatar,
@@ -21,10 +19,6 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import ProductCard from '../components/ProductCard';
-import CloudOffIcon from '@mui/icons-material/CloudOff';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import HeadsetMicIcon from '@mui/icons-material/HeadsetMic';
@@ -40,7 +34,7 @@ import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded';
 import BoltRoundedIcon from '@mui/icons-material/BoltRounded';
 import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded';
 import '../App.css';
-import { apiClient, withRetry } from '../services/apiClient';
+import { readVisitedProducts } from '../services/recentlyViewed';
 import { useNotifier } from '../context/NotificationProvider';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
@@ -132,74 +126,8 @@ const testimonials = [
 
 const brandInitials = ['SONY', 'BOSE', 'LG', 'SAMSUNG', 'ANKER', 'APPLE'];
 
-/* ---------- Pretty states for Recommended ---------- */
-function RecommendedError({ error, onRetry }) {
-  const [showDetails, setShowDetails] = React.useState(false);
-
-  return (
-    <Alert
-      severity="warning"
-      variant="outlined"
-      icon={<CloudOffIcon />}
-      sx={{
-        borderRadius: 3,
-        borderWidth: 2,
-        maxWidth: 900,
-        mx: 'auto',
-        background: theme => `linear-gradient(180deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
-        '& .MuiAlert-message': { width: '100%' },
-      }}
-      action={
-        <Stack direction="row" spacing={1}>
-          <Button size="small" startIcon={<RefreshIcon />} onClick={onRetry}>
-            Retry
-          </Button>
-          <Button size="small" component={Link} href="https://weaviate.io" target="_blank" rel="noopener" endIcon={<OpenInNewIcon />}>
-            Docs
-          </Button>
-        </Stack>
-      }
-    >
-      <AlertTitle>Recommendations unavailable</AlertTitle>
-      We couldn’t load personalized picks right now. This often happens when the vector service is unreachable. Please try again shortly.
-      <Box sx={{ mt: 1 }}>
-        <Button
-          size="small"
-          endIcon={
-            <ExpandMoreIcon
-              sx={{
-                transform: showDetails ? 'rotate(180deg)' : 'none',
-                transition: '0.2s',
-              }}
-            />
-          }
-          onClick={() => setShowDetails(v => !v)}
-        >
-          {showDetails ? 'Hide details' : 'Show details'}
-        </Button>
-        <Collapse in={showDetails}>
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 1.5,
-              mt: 1,
-              bgcolor: theme => theme.palette.action.hover,
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-              fontSize: 12,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            Weaviate cluster has been suspended. Please create your own free cluster at https://weaviate.io/developers/weaviate/installation/cloud and update
-            the API URL in <code>.env</code> to restore recommendations.
-          </Paper>
-        </Collapse>
-      </Box>
-    </Alert>
-  );
-}
-
-function RecommendedEmpty({ onExplore }) {
+/* ---------- Pretty states for the recently viewed rail ---------- */
+function RecentlyViewedEmpty({ onExplore }) {
   return (
     <Alert
       severity="info"
@@ -211,8 +139,8 @@ function RecommendedEmpty({ onExplore }) {
         background: theme => `linear-gradient(180deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
       }}
     >
-      <AlertTitle>No recommendations yet</AlertTitle>
-      Browse a few products so we can learn your taste and surface better picks.
+      <AlertTitle>Nothing here yet</AlertTitle>
+      Products you open are kept here so you can pick up where you left off.
       <Box sx={{ mt: 1 }}>
         <Button onClick={onExplore} variant="outlined" size="small" endIcon={<ArrowForwardIcon fontSize="small" />}>
           Explore products
@@ -288,9 +216,6 @@ function Home({ products, addToCart, error, loading }) {
   }, [products]);
 
   const [animatedCards, setAnimatedCards] = React.useState([]);
-  const [recs, setRecs] = React.useState([]);
-  const [recLoading, setRecLoading] = React.useState(true);
-  const [recError, setRecError] = React.useState(null);
   const [recPage, setRecPage] = React.useState(1);
   const [newsletterEmail, setNewsletterEmail] = React.useState('');
   const recPerPage = 6;
@@ -311,59 +236,27 @@ function Home({ products, addToCart, error, loading }) {
     return () => clearTimeout(t);
   }, [featuredProducts]);
 
-  /* Fetch recommendations (hoisted for Retry) */
-  const fetchRecs = React.useCallback(async () => {
-    setRecLoading(true);
-    setRecError(null);
-    try {
-      const visitedRaw = JSON.parse(localStorage.getItem('visitedProducts')) || [];
-      const visited = visitedRaw.filter(entry => entry && entry.id);
-      if (!visited.length) {
-        localStorage.removeItem('visitedProducts');
-        setRecs([]);
-        return;
-      }
+  /**
+   * The recently viewed rail.
+   *
+   * Built from the browser's own visit history intersected with the catalog already loaded
+   * for this page, so it costs no request, cannot fail, and needs no recommendation service.
+   * A product that has since been withdrawn simply drops out, because only ids present in
+   * `products` survive the join.
+   */
+  const recs = React.useMemo(() => {
+    if (!Array.isArray(products) || !products.length) return [];
+    const byId = new Map(products.filter(Boolean).map(product => [String(product._id || product.id), product]));
+    return readVisitedProducts()
+      .map(entry => byId.get(entry.id))
+      .filter(Boolean)
+      .map(normalizeProduct);
+  }, [products]);
 
-      const seen = new Set();
-      const lastTen = [];
-      for (let i = visited.length - 1; i >= 0 && lastTen.length < 10; i -= 1) {
-        const vid = visited[i].id;
-        if (!vid || seen.has(vid)) continue;
-        seen.add(vid);
-        lastTen.push(vid);
-      }
-      if (!lastTen.length) {
-        setRecs([]);
-        return;
-      }
-
-      const { data } = await withRetry(() => apiClient.post('products/recommendations', { ids: lastTen }));
-      if (!Array.isArray(data)) {
-        throw new Error('Unexpected recommendations response.');
-      }
-      setRecs(data);
-    } catch (e) {
-      if (e?.response?.status === 400) {
-        console.warn('Clearing visitedProducts due to stale recommendation ids');
-        localStorage.removeItem('visitedProducts');
-        setRecs([]);
-      } else {
-        setRecs([]);
-        setRecError(e);
-      }
-    } finally {
-      setRecLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    fetchRecs();
-  }, [fetchRecs]);
-
-  /* Pagination helpers for recommendations */
+  /* Pagination helpers for the recently viewed rail */
   const recPageCount = Math.ceil(recs.length / recPerPage) || 1;
   const recStart = (recPage - 1) * recPerPage;
-  const recToShow = recs.slice(recStart, recStart + recPerPage).map(normalizeProduct);
+  const recToShow = recs.slice(recStart, recStart + recPerPage);
   const handleRecPageChange = (_e, value) => setRecPage(value);
 
   const handleNewsletterSubmit = event => {
@@ -811,18 +704,12 @@ function Home({ products, addToCart, error, loading }) {
           </Box>
         )}
 
-        {/* ====================== RECOMMENDATIONS ====================== */}
+        {/* ====================== RECENTLY VIEWED ====================== */}
         <Box sx={{ mt: 12 }}>
-          <SectionHeading eyebrow="For you" title="Personalized For You" subtitle="Based on your recent views, we think you might like these products." />
+          <SectionHeading eyebrow="Your history" title="Recently Viewed" subtitle="The products you opened most recently, kept in this browser only." />
 
-          {recError ? (
-            <RecommendedError error={recError} onRetry={fetchRecs} />
-          ) : recLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : recs.length === 0 ? (
-            <RecommendedEmpty onExplore={handleExplore} />
+          {recs.length === 0 ? (
+            <RecentlyViewedEmpty onExplore={handleExplore} />
           ) : (
             <>
               <Grid container spacing={4}>

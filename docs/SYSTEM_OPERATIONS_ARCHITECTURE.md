@@ -1,6 +1,6 @@
 # MansooriKart System Operations Architecture
 
-Phase H added the operator's view of the running system: a system health endpoint for the Super Admin console and a read-only administration surface over the audit trail that already existed. The implementation is `backend/src/routes/v1/adminCore.ts` over the existing `backend/src/models/auditLog.ts`, with `backend/src/utils/redact.ts` as the publication filter and `auditEntry` in `backend/src/serializers/marketingAdmin.ts` as the projection. No second audit model was created, and the Phase A public health endpoints are unchanged. The legacy `/api/*` runtime is untouched, and no frontend was built in this phase.
+The operations surface provides public liveness probes, authenticated Super Admin health, and read-only access to the audit trail. `backend/src/utils/redact.ts` filters metadata and `auditEntry` provides the response projection. The removed legacy `/api/*` runtime has no active consumer.
 
 Companion documents: [MARKETING_ARCHITECTURE.md](./MARKETING_ARCHITECTURE.md), [CMS_ARCHITECTURE.md](./CMS_ARCHITECTURE.md), [STORE_CONFIGURATION_ARCHITECTURE.md](./STORE_CONFIGURATION_ARCHITECTURE.md), [API_CONTRACT.md](./API_CONTRACT.md), [API_INVENTORY.md](./API_INVENTORY.md).
 

@@ -1086,7 +1086,34 @@ function statusFor(counters: { invalidRows: number; failedRows: number; createdR
 export async function runImport(actor: string, jobId: string, requestId?: string) {
   const job = await loadJob(jobId);
   if (['COMPLETED', 'PARTIAL', 'FAILED'].includes(job.status)) return { job: job.toObject(), replayed: true };
-  if (job.status === 'IMPORTING') throw new CatalogImportError('IMPORT_IN_PROGRESS', 'This import is already running.', 409);
+  if (job.status === 'IMPORTING') {
+    const staleBefore = new Date(Date.now() - 60 * 60 * 1000);
+    const recovered = await CatalogImportJob.findOneAndUpdate(
+      { _id: job._id, status: 'IMPORTING', $or: [{ startedAt: { $lt: staleBefore } }, { startedAt: { $exists: false } }] },
+      {
+        $set: {
+          status: 'FAILED',
+          completedAt: new Date(),
+          errorSummary: [
+            { code: 'IMPORT_INTERRUPTED', message: 'The import exceeded its one-hour lease and was not resumed. Upload a new file to retry safely.', count: 1 },
+          ],
+        },
+      },
+      { new: true }
+    );
+    if (recovered) {
+      await AuditLog.create({
+        actor,
+        action: 'CATALOG_IMPORT_STALE_RECOVERED',
+        resourceType: 'CatalogImportJob',
+        resourceId: String(job._id),
+        requestId,
+        metadata: { jobNumber: recovered.jobNumber },
+      });
+      return { job: recovered.toObject(), replayed: true };
+    }
+    throw new CatalogImportError('IMPORT_IN_PROGRESS', 'This import is already running.', 409);
+  }
   if (job.status !== 'READY') throw new CatalogImportError('IMPORT_JOB_NOT_READY', `A ${job.status} import job cannot be imported.`, 409);
   const entries = mappedEntries(job);
   const claimed = await CatalogImportJob.findOneAndUpdate(

@@ -2,8 +2,8 @@
 
 Phase F, Part B: the Super Admin report family. Everything below describes the implemented
 `/api/v1` runtime (`backend/src/routes/v1/adminReports.ts`, backed by
-`backend/src/services/financeService.ts`). The frozen legacy `/api/*` runtime is untouched,
-and no frontend was built in this phase — there is no reports UI, no chart, no P&L page, and
+`backend/src/services/financeService.ts`). The removed legacy `/api/*` runtime has no active consumer.
+There is no reports UI, no chart, no P&L page, and
 no CSV download screen.
 
 Money definitions live in [FINANCE_ARCHITECTURE.md](./FINANCE_ARCHITECTURE.md). This document

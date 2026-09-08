@@ -1,3 +1,4 @@
+import { atomic } from './transaction.js';
 import crypto from 'node:crypto';
 import { Types } from 'mongoose';
 import { AuditLog } from '../models/auditLog.js';
@@ -25,16 +26,7 @@ const sequence = (prefix: string) =>
 
 /** Creates a document, regenerating the server-owned number on a unique-number collision. */
 const createWithNumber = async (model: any, field: string, prefix: string, payload: Record<string, unknown>) => {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    try {
-      return await model.create({ ...payload, [field]: sequence(prefix) });
-    } catch (error: any) {
-      if (error?.code !== 11000 || !(field in (error?.keyPattern ?? {}))) throw error;
-      lastError = error;
-    }
-  }
-  throw lastError;
+  return model.create({ ...payload, [field]: sequence(prefix) });
 };
 
 /**
@@ -156,47 +148,13 @@ const reserveReceipt = async (purchaseOrderId: string, deltas: LineDelta[], cont
     { new: true }
   );
 
-/** Unconditionally reverses a previously applied receipt claim. */
-const releaseReceipt = async (purchaseOrderId: string, deltas: LineDelta[], context: { actor?: string | undefined; requestId?: string | undefined }) =>
-  PurchaseOrder.findOneAndUpdate({ _id: purchaseOrderId }, [
-    {
-      $set: {
-        items: {
-          $map: {
-            input: '$items',
-            as: 'it',
-            in: {
-              $switch: {
-                branches: deltas.map(delta => ({
-                  case: { $eq: ['$$it._id', delta.lineId] },
-                  then: {
-                    $mergeObjects: [
-                      '$$it',
-                      {
-                        quantityReceived: { $max: [0, { $subtract: ['$$it.quantityReceived', delta.received] }] },
-                        quantityAccepted: { $max: [0, { $subtract: ['$$it.quantityAccepted', delta.accepted] }] },
-                        quantityRejected: { $max: [0, { $subtract: ['$$it.quantityRejected', delta.rejected] }] },
-                      },
-                    ],
-                  },
-                })),
-                default: '$$it',
-              },
-            },
-          },
-        },
-      },
-    },
-    ...recomputeStatusStages({ ...context, reason: 'Receipt reverted' }),
-  ]);
-
 const oid = (value: unknown) => new Types.ObjectId(String(value));
 
-const auditOrThrow = async (payload: Record<string, unknown>, rollback: () => Promise<void>, code: string) => {
+const auditOrThrow = async (payload: Record<string, unknown>, code: string) => {
   try {
     await AuditLog.create(payload);
   } catch (error) {
-    await rollback();
+    if ((error as any)?.hasErrorLabel?.('TransientTransactionError')) throw error;
     throw new PurchasingError(code, 'The operation was reverted because its audit record could not be written.', 500);
   }
 };
@@ -263,7 +221,7 @@ export const buildPurchaseOrderTotals = async (
   return { lines, subtotal, shippingCost, taxAmount, discount, total: money(Math.max(0, subtotal + shippingCost + taxAmount - discount)) };
 };
 
-export const createPurchaseOrder = async (input: {
+const createPurchaseOrderImpl = async (input: {
   supplierId: string;
   items: { productId: string; quantity: number; unitCost: number }[];
   warehouseId?: string | undefined;
@@ -309,15 +267,12 @@ export const createPurchaseOrder = async (input: {
       requestId: input.requestId,
       metadata: { poNumber: created.poNumber, supplier: String(supplier._id), total: totals.total, lines: totals.lines.length },
     },
-    async () => {
-      await PurchaseOrder.deleteOne({ _id: created._id });
-    },
     'PURCHASE_ORDER_AUDIT_FAILED'
   );
   return created;
 };
 
-export const updatePurchaseOrder = async (
+const updatePurchaseOrderImpl = async (
   purchaseOrderId: string,
   input: {
     items?: { productId: string; quantity: number; unitCost: number }[] | undefined;
@@ -377,7 +332,7 @@ export const updatePurchaseOrder = async (
 };
 
 /** Applies a lifecycle transition with a single atomic conditional update. */
-export const transitionPurchaseOrder = async (
+const transitionPurchaseOrderImpl = async (
   purchaseOrderId: string,
   to: 'PENDING_APPROVAL' | 'APPROVED' | 'CANCELLED' | 'CLOSED',
   context: { actor: string; requestId?: string | undefined; reason?: string | undefined }
@@ -443,10 +398,10 @@ type ReceiptLineInput = { purchaseOrderItemId: string; quantityAccepted: number;
  * document is written (its unique `(purchaseOrder, idempotencyKey)` index is the
  * durable replay authority and is therefore consulted before any stock moves),
  * then accepted quantities are added to inventory through the inventory service.
- * Every failure after a successful step reverses the steps before it, so a
- * partially applied receipt can never leave phantom inventory behind.
+ * Receipt, counters, stock, costs and audit commit in one MongoDB transaction.
+ * An aborted transaction leaves no partial receipt or compensating movements.
  */
-export const receiveGoods = async (
+const receiveGoodsImpl = async (
   purchaseOrderId: string,
   input: { items: ReceiptLineInput[]; receivedAt?: Date | undefined; note?: string | undefined },
   context: { actor: string; requestId?: string | undefined; idempotencyKey: string }
@@ -513,39 +468,25 @@ export const receiveGoods = async (
       throw new PurchasingError('PURCHASE_ORDER_NOT_RECEIVABLE', `Goods cannot be received against a ${current.status} purchase order.`, 409);
     throw new PurchasingError('PURCHASE_RECEIPT_QUANTITY_INVALID', 'Another receipt consumed the remaining ordered quantity.', 409);
   }
-  const release = async () => {
-    await releaseReceipt(purchaseOrderId, deltas, context);
-  };
 
-  let receipt: any;
-  try {
-    receipt = await createWithNumber(GoodsReceipt, 'receiptNumber', 'GRN', {
-      purchaseOrder: oid(purchaseOrderId),
-      supplier: oid(purchaseOrder.supplier),
-      warehouse: oid(purchaseOrder.warehouse),
-      location: oid(purchaseOrder.location),
-      items: receiptItems,
-      totalAccepted,
-      totalRejected,
-      acceptedValue: money(acceptedValue),
-      currency: purchaseOrder.currency ?? 'PKR',
-      receivedAt: input.receivedAt ?? new Date(),
-      note: input.note ?? null,
-      receivedBy: oid(context.actor),
-      idempotencyKey: context.idempotencyKey,
-      requestId: context.requestId ?? null,
-    });
-  } catch (error: any) {
-    await release();
-    if (error?.code === 11000) {
-      const winner = await replay();
-      if (winner) return winner;
-    }
-    throw error;
-  }
+  const receipt = await createWithNumber(GoodsReceipt, 'receiptNumber', 'GRN', {
+    purchaseOrder: oid(purchaseOrderId),
+    supplier: oid(purchaseOrder.supplier),
+    warehouse: oid(purchaseOrder.warehouse),
+    location: oid(purchaseOrder.location),
+    items: receiptItems,
+    totalAccepted,
+    totalRejected,
+    acceptedValue: money(acceptedValue),
+    currency: purchaseOrder.currency ?? 'PKR',
+    receivedAt: input.receivedAt ?? new Date(),
+    note: input.note ?? null,
+    receivedBy: oid(context.actor),
+    idempotencyKey: context.idempotencyKey,
+    requestId: context.requestId ?? null,
+  });
 
   // Only accepted units reach inventory, and only through the inventory service.
-  const applied: LineDelta[] = [];
   try {
     for (const item of receiptItems) {
       const quantity = item['quantityAccepted'] as number;
@@ -562,19 +503,15 @@ export const receiveGoods = async (
         locationId: String(purchaseOrder.location),
         type: 'PURCHASE_RECEIPT',
       });
-      applied.push({ lineId: oid(item['purchaseOrderItem']), received: 0, accepted: quantity, rejected: 0 });
     }
   } catch (error) {
-    await revertInventory(applied, receiptItems, purchaseOrder, context, `Compensating failed goods receipt ${receipt.receiptNumber}`);
-    await GoodsReceipt.deleteOne({ _id: receipt._id });
-    await release();
     if (error instanceof InventoryError) throw new PurchasingError(error.code, error.message, 409);
     throw error;
   }
 
   // Cost price policy: LATEST_PURCHASE_COST. Never a valuation method.
-  let costPriceSynced = true;
-  try {
+  const costPriceSynced = true;
+  {
     for (const item of receiptItems) {
       if ((item['quantityAccepted'] as number) <= 0) continue;
       const before = await Product.findOneAndUpdate({ _id: item['product'] }, { $set: { costPrice: item['unitCost'] } }, { new: false })
@@ -582,10 +519,6 @@ export const receiveGoods = async (
         .lean();
       item['previousCostPrice'] = before?.costPrice ?? undefined;
     }
-  } catch {
-    // Cost price is descriptive metadata, not the stock authority. A failure here
-    // is surfaced on the receipt rather than reverting physically received goods.
-    costPriceSynced = false;
   }
   await GoodsReceipt.updateOne({ _id: receipt._id }, { $set: { costPriceSynced, items: receiptItems } });
 
@@ -606,45 +539,9 @@ export const receiveGoods = async (
         costPriceSynced,
       },
     },
-    async () => {
-      await revertInventory(applied, receiptItems, purchaseOrder, context, `Compensating unaudited goods receipt ${receipt.receiptNumber}`);
-      await GoodsReceipt.deleteOne({ _id: receipt._id });
-      await release();
-    },
     'PURCHASE_RECEIPT_AUDIT_FAILED'
   );
   return await GoodsReceipt.findById(receipt._id);
-};
-
-/** Best-effort reversal of inventory that a failed receipt already applied. */
-const revertInventory = async (
-  applied: LineDelta[],
-  receiptItems: Record<string, unknown>[],
-  purchaseOrder: any,
-  context: { actor: string; requestId?: string | undefined },
-  reason: string
-) => {
-  for (const entry of applied.slice().reverse()) {
-    const item = receiptItems.find(candidate => String(candidate['purchaseOrderItem']) === String(entry.lineId));
-    if (!item) continue;
-    try {
-      await adjustStock({
-        productId: String(item['product']),
-        quantityDelta: -entry.accepted,
-        reason,
-        actor: context.actor,
-        requestId: context.requestId,
-        referenceType: 'PurchaseOrder',
-        referenceId: String(purchaseOrder._id),
-        warehouseId: String(purchaseOrder.warehouse),
-        locationId: String(purchaseOrder.location),
-        type: 'ADJUSTMENT',
-      });
-    } catch {
-      // Reversal is already the failure path; the movement ledger retains both
-      // the original increment and this attempt for reconciliation.
-    }
-  }
 };
 
 /* -------------------------------------------------------------------------- */
@@ -658,7 +555,7 @@ const revertInventory = async (
  * service's own non-negative balance guard. No financial settlement, supplier
  * refund, or credit note is implied or recorded.
  */
-export const returnToSupplier = async (
+const returnToSupplierImpl = async (
   purchaseOrderId: string,
   input: { items: { purchaseOrderItemId: string; quantity: number }[]; reason: string; returnedAt?: Date | undefined },
   context: { actor: string; requestId?: string | undefined; idempotencyKey: string }
@@ -744,79 +641,22 @@ export const returnToSupplier = async (
     if (raced) return raced;
     throw new PurchasingError('PURCHASE_RETURN_QUANTITY_INVALID', 'Another return consumed the remaining accepted quantity.', 409);
   }
-  const release = async () => {
-    await PurchaseOrder.updateOne({ _id: purchaseOrderId }, [
-      {
-        $set: {
-          items: {
-            $map: {
-              input: '$items',
-              as: 'it',
-              in: {
-                $switch: {
-                  branches: lines.map(line => ({
-                    case: { $eq: ['$$it._id', line.lineId] },
-                    then: { $mergeObjects: ['$$it', { quantityReturned: { $max: [0, { $subtract: ['$$it.quantityReturned', line.quantity] }] } }] },
-                  })),
-                  default: '$$it',
-                },
-              },
-            },
-          },
-        },
-      },
-    ]);
-  };
+  const record = await createWithNumber(PurchaseReturn, 'returnNumber', 'PRT', {
+    purchaseOrder: oid(purchaseOrderId),
+    supplier: oid(purchaseOrder.supplier),
+    warehouse: oid(purchaseOrder.warehouse),
+    location: oid(purchaseOrder.location),
+    items: returnItems,
+    totalQuantity,
+    returnedValue: money(returnedValue),
+    currency: purchaseOrder.currency ?? 'PKR',
+    reason: input.reason,
+    returnedAt: input.returnedAt ?? new Date(),
+    createdBy: oid(context.actor),
+    idempotencyKey: context.idempotencyKey,
+    requestId: context.requestId ?? null,
+  });
 
-  let record: any;
-  try {
-    record = await createWithNumber(PurchaseReturn, 'returnNumber', 'PRT', {
-      purchaseOrder: oid(purchaseOrderId),
-      supplier: oid(purchaseOrder.supplier),
-      warehouse: oid(purchaseOrder.warehouse),
-      location: oid(purchaseOrder.location),
-      items: returnItems,
-      totalQuantity,
-      returnedValue: money(returnedValue),
-      currency: purchaseOrder.currency ?? 'PKR',
-      reason: input.reason,
-      returnedAt: input.returnedAt ?? new Date(),
-      createdBy: oid(context.actor),
-      idempotencyKey: context.idempotencyKey,
-      requestId: context.requestId ?? null,
-    });
-  } catch (error: any) {
-    await release();
-    if (error?.code === 11000) {
-      const winner = await replay();
-      if (winner) return winner;
-    }
-    throw error;
-  }
-
-  const applied: { lineId: Types.ObjectId; quantity: number }[] = [];
-  const rollbackInventory = async (label: string) => {
-    for (const entry of applied.slice().reverse()) {
-      const item = returnItems.find(candidate => String(candidate['purchaseOrderItem']) === String(entry.lineId));
-      if (!item) continue;
-      try {
-        await adjustStock({
-          productId: String(item['product']),
-          quantityDelta: entry.quantity,
-          reason: label,
-          actor: context.actor,
-          requestId: context.requestId,
-          referenceType: 'PurchaseOrder',
-          referenceId: String(purchaseOrderId),
-          warehouseId: String(purchaseOrder.warehouse),
-          locationId: String(purchaseOrder.location),
-          type: 'ADJUSTMENT',
-        });
-      } catch {
-        // See revertInventory: the ledger keeps both attempts for reconciliation.
-      }
-    }
-  };
   try {
     for (const item of returnItems) {
       await adjustStock({
@@ -831,12 +671,8 @@ export const returnToSupplier = async (
         locationId: String(purchaseOrder.location),
         type: 'PURCHASE_RETURN',
       });
-      applied.push({ lineId: oid(item['purchaseOrderItem']), quantity: item['quantity'] as number });
     }
   } catch (error) {
-    await rollbackInventory(`Compensating failed supplier return ${record.returnNumber}`);
-    await PurchaseReturn.deleteOne({ _id: record._id });
-    await release();
     if (error instanceof InventoryError) throw new PurchasingError(error.code, error.message, 409);
     throw error;
   }
@@ -856,12 +692,17 @@ export const returnToSupplier = async (
         returnedValue: money(returnedValue),
       },
     },
-    async () => {
-      await rollbackInventory(`Compensating unaudited supplier return ${record.returnNumber}`);
-      await PurchaseReturn.deleteOne({ _id: record._id });
-      await release();
-    },
     'PURCHASE_RETURN_AUDIT_FAILED'
   );
   return record;
 };
+
+export const createPurchaseOrder = (...args: Parameters<typeof createPurchaseOrderImpl>) => atomic(() => createPurchaseOrderImpl(...args));
+
+export const updatePurchaseOrder = (...args: Parameters<typeof updatePurchaseOrderImpl>) => atomic(() => updatePurchaseOrderImpl(...args));
+
+export const transitionPurchaseOrder = (...args: Parameters<typeof transitionPurchaseOrderImpl>) => atomic(() => transitionPurchaseOrderImpl(...args));
+
+export const receiveGoods = (...args: Parameters<typeof receiveGoodsImpl>) => atomic(() => receiveGoodsImpl(...args));
+
+export const returnToSupplier = (...args: Parameters<typeof returnToSupplierImpl>) => atomic(() => returnToSupplierImpl(...args));

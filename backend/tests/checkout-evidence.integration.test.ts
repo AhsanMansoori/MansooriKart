@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from './helpers/mongo.js';
 import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { Address } from '../src/models/address.js';
@@ -69,11 +69,43 @@ test('checkout revalidates changed coupons and keeps failure/audit state safe', 
       await Product.updateOne({ _id: p._id }, { $set: { price: 1000 } });
     }
     const cap = await Coupon.create({ code: 'CAPFINAL', type: 'PERCENTAGE', value: 50, maximumDiscount: 100 });
+    let preview = await request(app)
+      .post('/api/v1/checkout/preview')
+      .set('Authorization', `Bearer ${t}`)
+      .send({ addressId: String(a._id), paymentMethod: 'CASH_ON_DELIVERY', couponCode: 'capfinal', items: [{ productId: String(p._id), quantity: 1 }] });
+    assert.equal(preview.status, 200);
+    assert.deepEqual(Object.keys(preview.body.data).sort(), ['currency', 'discount', 'items', 'quoteHash', 'shipping', 'subtotal', 'tax', 'total'].sort());
+    assert.equal(preview.body.data.currency, 'PKR');
+    await Product.updateOne({ _id: p._id }, { $set: { price: 1100 } });
     let r = await request(app)
       .post('/api/v1/checkout')
       .set('Authorization', `Bearer ${t}`)
+      .set('Idempotency-Key', 'stale-quote')
+      .send({
+        addressId: String(a._id),
+        paymentMethod: 'CASH_ON_DELIVERY',
+        couponCode: 'capfinal',
+        items: [{ productId: String(p._id), quantity: 1 }],
+        quoteHash: preview.body.data.quoteHash,
+      });
+    assert.equal(r.status, 400);
+    assert.equal(r.body.error.code, 'CHECKOUT_QUOTE_CHANGED');
+    assert.equal(await Order.countDocuments({ idempotencyKey: 'stale-quote' }), 0);
+    preview = await request(app)
+      .post('/api/v1/checkout/preview')
+      .set('Authorization', `Bearer ${t}`)
+      .send({ addressId: String(a._id), paymentMethod: 'CASH_ON_DELIVERY', couponCode: 'capfinal', items: [{ productId: String(p._id), quantity: 1 }] });
+    r = await request(app)
+      .post('/api/v1/checkout')
+      .set('Authorization', `Bearer ${t}`)
       .set('Idempotency-Key', 'cap-final')
-      .send({ addressId: String(a._id), paymentMethod: 'CASH_ON_DELIVERY', couponCode: 'capfinal' });
+      .send({
+        addressId: String(a._id),
+        paymentMethod: 'CASH_ON_DELIVERY',
+        couponCode: 'capfinal',
+        items: [{ productId: String(p._id), quantity: 1 }],
+        quoteHash: preview.body.data.quoteHash,
+      });
     assert.equal(r.status, 201);
     assert.equal(r.body.data.discount, 100);
     const id = r.body.data._id;

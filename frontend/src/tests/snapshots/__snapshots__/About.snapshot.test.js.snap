@@ -14,7 +14,7 @@ exports[`About snapshot matches the rendered markup 1`] = `
         <span
           class="MuiChip-label MuiChip-labelMedium css-1jzq0dw-MuiChip-label"
         >
-          About Fusion
+          About MansooriKart
         </span>
       </div>
       <h3
@@ -25,7 +25,7 @@ exports[`About snapshot matches the rendered markup 1`] = `
       <p
         class="MuiTypography-root MuiTypography-body1 css-hsbfs4-MuiTypography-root"
       >
-        Fusion Electronics is a collective of engineers, industrial designers, and experience strategists. We scout the highest performing gadgets, stress-test them in our lab, and package them into delightful experiences so you can focus on creating.
+        MansooriKart is a collective of engineers, industrial designers, and experience strategists. We scout the highest performing gadgets, stress-test them in our lab, and package them into delightful experiences so you can focus on creating.
       </p>
     </div>
     <div
@@ -239,7 +239,7 @@ exports[`About snapshot matches the rendered markup 1`] = `
             <p
               class="MuiTypography-root MuiTypography-body2 css-r40f8v-MuiTypography-root"
             >
-              Started Fusion Electronics with a mission to curate gear that empowers creators and everyday innovators.
+              Started MansooriKart with a mission to curate gear that empowers creators and everyday innovators.
             </p>
           </div>
         </div>

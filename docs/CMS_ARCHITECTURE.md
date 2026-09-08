@@ -1,6 +1,6 @@
 # MansooriKart CMS Architecture
 
-Phase H added the content layer: CMS pages, FAQs and the header/footer navigation menus, together with the public endpoints that serve them. The implementation is `backend/src/routes/v1/adminCms.ts` and `backend/src/routes/v1/storefront.ts` over `backend/src/services/cmsService.ts`, with `backend/src/models/cmsPage.ts` (both `CmsPage` and `Faq`) and `backend/src/models/navigationMenu.ts` as the persistence, `backend/src/utils/contentSchemas.ts` and `backend/src/utils/sanitize.ts` as the validation and sanitisation layer, and `backend/src/serializers/marketingAdmin.ts` and `backend/src/serializers/storefront.ts` as the two projections. The legacy `/api/*` runtime is untouched, and no frontend was built in this phase.
+The content layer provides CMS pages, FAQs and header/footer navigation. It is implemented by `backend/src/routes/v1/adminCms.ts` and `backend/src/routes/v1/storefront.ts` over `backend/src/services/cmsService.ts`, with strict sanitization and separate public/admin serializers. The removed legacy `/api/*` runtime has no active consumer.
 
 Companion documents: [MARKETING_ARCHITECTURE.md](./MARKETING_ARCHITECTURE.md), [STORE_CONFIGURATION_ARCHITECTURE.md](./STORE_CONFIGURATION_ARCHITECTURE.md), [SYSTEM_OPERATIONS_ARCHITECTURE.md](./SYSTEM_OPERATIONS_ARCHITECTURE.md), [API_CONTRACT.md](./API_CONTRACT.md), [API_INVENTORY.md](./API_INVENTORY.md).
 
