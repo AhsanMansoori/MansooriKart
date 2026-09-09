@@ -1,4 +1,5 @@
 name: Phase J one-shot formatter
+# Temporary workflow: remove after formatting succeeds.
 
 on:
   push:
