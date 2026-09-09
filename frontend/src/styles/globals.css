@@ -2,34 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { 
-    color: #16324f; 
-    background: #f8fafc; 
-    font-family: Poppins, ui-sans-serif, system-ui, sans-serif; 
+:root {
+  --mk-background: #f8fafc;
+  --mk-foreground: #17202a;
+  --mk-card: #ffffff;
+  --mk-card-foreground: #17202a;
+  --mk-primary: #18c19f;
+  --mk-primary-foreground: #062d25;
+  --mk-primary-light: #8bf3af;
+  --mk-secondary: #e8fff4;
+  --mk-secondary-foreground: #0b4a3d;
+  --mk-muted: #f1f5f9;
+  --mk-muted-foreground: #64748b;
+  --mk-accent: #ffce00;
+  --mk-accent-foreground: #2d2500;
+  --mk-border: #dce5e2;
+  --mk-input: #dce5e2;
+  --mk-ring: #18c19f;
+  --mk-destructive: #dc2626;
+  --mk-destructive-foreground: #ffffff;
+  --mk-success: #15803d;
+  --mk-success-foreground: #ffffff;
+  --mk-warning: #d97706;
+  --mk-warning-foreground: #ffffff;
+  --mk-info: #2563eb;
+  --mk-info-foreground: #ffffff;
+  --mk-brand-green: #18c19f;
+  --mk-brand-light-green: #8bf3af;
+  --mk-brand-gold: #ffce00;
+  --mk-brand-yellow: #feff7d;
+
+  color: var(--mk-foreground);
+  background: var(--mk-background);
+  font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
 }
 
-*, *::before, *::after { 
-    box-sizing: border-box; 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-body { 
-    margin: 0; 
-    min-width: 320px; 
-    background: #f8fafc; 
-    color: #16324f; 
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--mk-background);
+  color: var(--mk-foreground);
 }
 
-img { 
-    display: block; 
-    max-width: 100%; 
+img {
+  display: block;
+  max-width: 100%;
 }
 
-::selection { 
-    background: #f5a623; 
-    color: #0d1f33; 
+::selection {
+  background: var(--mk-brand-gold);
+  color: var(--mk-accent-foreground);
 }
 
-:focus-visible { 
-    outline: 3px solid #f5a623; 
-    outline-offset: 3px; 
+:focus-visible {
+  outline: 3px solid var(--mk-ring);
+  outline-offset: 3px;
 }
