@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
@@ -25,29 +25,6 @@ jobs:
 
       - name: Install workspace dependencies
         run: npm ci
-
-      - name: One-shot format Phase J files
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          npm run format
-          if git diff --quiet; then
-            echo "No formatting changes needed."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add frontend/src/components/admin/AdminLayout.tsx \
-                    frontend/src/components/ui/index.tsx \
-                    frontend/src/pages/admin/CatalogImportsPage.tsx \
-                    frontend/src/pages/admin/OrdersPage.tsx \
-                    frontend/src/pages/admin/PricingPage.tsx \
-                    frontend/src/pages/admin/ProductsPage.tsx \
-                    frontend/src/services/admin/catalog.ts \
-                    frontend/src/services/admin/catalogImports.ts \
-                    frontend/src/services/admin/orders.ts
-            git commit -m "chore: format Phase J admin files"
-            git push
-          fi
 
       - name: Check formatting
         run: npm run format:check
