@@ -258,9 +258,7 @@ export default function CatalogImportsPage() {
         <Card className="p-6">
           <div className="mb-5">
             <h2 className="text-lg font-bold">Map supplier columns</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Required targets: {config.required.join(', ')}. Leave irrelevant supplier columns unmapped.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Required targets: {config.required.join(', ')}. Leave irrelevant supplier columns unmapped.</p>
           </div>
 
           <div className="overflow-x-auto rounded-mk border border-border">
@@ -276,14 +274,12 @@ export default function CatalogImportsPage() {
                   <tr key={header}>
                     <td className="px-4 py-3 font-semibold">{header}</td>
                     <td className="px-4 py-3">
-                      <Select
-                        value={mapping[header] ?? ''}
-                        onChange={event => setMapping(current => ({ ...current, [header]: event.target.value }))}
-                      >
+                      <Select value={mapping[header] ?? ''} onChange={event => setMapping(current => ({ ...current, [header]: event.target.value }))}>
                         <option value="">Ignore this column</option>
                         {config.targets.map(target => (
                           <option key={target} value={target}>
-                            {target}{config.required.includes(target) ? ' *' : ''}
+                            {target}
+                            {config.required.includes(target) ? ' *' : ''}
                           </option>
                         ))}
                       </Select>
@@ -421,7 +417,9 @@ export default function CatalogImportsPage() {
                   <tr key={item.id}>
                     <td className="px-3 py-3 font-semibold">{item.jobNumber}</td>
                     <td className="px-3 py-3">{item.fileName}</td>
-                    <td className="px-3 py-3"><Badge>{item.status}</Badge></td>
+                    <td className="px-3 py-3">
+                      <Badge>{item.status}</Badge>
+                    </td>
                     <td className="px-3 py-3">{item.counters.totalRows}</td>
                     <td className="px-3 py-3">{item.counters.createdRows}</td>
                     <td className="px-3 py-3">{item.counters.failedRows}</td>

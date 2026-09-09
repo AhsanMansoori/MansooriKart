@@ -38,9 +38,7 @@ export function AdminLayout() {
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 rounded-mk px-3 py-2.5 text-sm font-semibold transition',
-                    isActive
-                      ? 'bg-secondary text-secondary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    isActive ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )
                 }
               >

@@ -1,11 +1,4 @@
-import type {
-  ButtonHTMLAttributes,
-  HTMLAttributes,
-  InputHTMLAttributes,
-  PropsWithChildren,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
-} from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes, PropsWithChildren, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import { LoaderCircle } from 'lucide-react';
 
 export const cn = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
@@ -61,10 +54,7 @@ export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectE
 export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
-      className={cn(
-        'inline-flex items-center rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground',
-        className
-      )}
+      className={cn('inline-flex items-center rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground', className)}
       {...props}
     />
   );
@@ -84,11 +74,7 @@ export function Spinner({ label = 'Loading' }: { label?: string }) {
 
 export function Alert({ children, className, ...props }: PropsWithChildren<HTMLAttributes<HTMLDivElement>>) {
   return (
-    <div
-      role="alert"
-      className={cn('rounded-mk border border-border bg-muted p-3 text-sm text-foreground', className)}
-      {...props}
-    >
+    <div role="alert" className={cn('rounded-mk border border-border bg-muted p-3 text-sm text-foreground', className)} {...props}>
       {children}
     </div>
   );

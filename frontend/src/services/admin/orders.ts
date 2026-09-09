@@ -43,14 +43,16 @@ export type AdminOrderDetail = AdminOrder & {
   dropshipFulfillments?: DropshipFulfillment[];
 };
 
-export async function listOrders(params: {
-  page?: number;
-  limit?: number;
-  orderStatus?: string;
-  paymentStatus?: string;
-  customer?: string;
-  orderNumber?: string;
-} = {}) {
+export async function listOrders(
+  params: {
+    page?: number;
+    limit?: number;
+    orderStatus?: string;
+    paymentStatus?: string;
+    customer?: string;
+    orderNumber?: string;
+  } = {}
+) {
   const response = await apiClient.get('/admin/orders', { params: { page: 1, limit: 20, ...params } });
   return { items: unwrap(response) as AdminOrder[], meta: unwrapMeta(response) };
 }
@@ -75,19 +77,23 @@ export async function cancelOrder(orderId: string) {
   return unwrap(response) as AdminOrder;
 }
 
-export async function listDropshipFulfillments(params: {
-  page?: number;
-  limit?: number;
-  status?: string;
-  orderNumber?: string;
-} = {}) {
+export async function listDropshipFulfillments(
+  params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    orderNumber?: string;
+  } = {}
+) {
   const response = await apiClient.get('/admin/dropship-fulfillments', { params: { page: 1, limit: 20, ...params } });
   return { items: unwrap(response) as DropshipFulfillment[], meta: unwrapMeta(response) };
 }
 
 export async function updateDropshipFulfillment(
   id: string,
-  body: Partial<Pick<DropshipFulfillment, 'status' | 'supplierOrderReference' | 'supplierTrackingNumber' | 'carrier' | 'trackingUrl' | 'notes'>> & { reason?: string }
+  body: Partial<Pick<DropshipFulfillment, 'status' | 'supplierOrderReference' | 'supplierTrackingNumber' | 'carrier' | 'trackingUrl' | 'notes'>> & {
+    reason?: string;
+  }
 ) {
   const response = await apiClient.patch(`/admin/dropship-fulfillments/${id}`, body);
   return unwrap(response) as DropshipFulfillment;

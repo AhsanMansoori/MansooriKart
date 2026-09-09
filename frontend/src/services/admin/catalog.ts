@@ -33,18 +33,23 @@ export type PublicationCandidate = {
   issues: Array<{ code: string; message?: string }>;
 };
 
-export async function listAdminProducts(params: {
-  page?: number;
-  limit?: number;
-  status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
-  search?: string;
-  sort?: string;
-} = {}) {
+export async function listAdminProducts(
+  params: {
+    page?: number;
+    limit?: number;
+    status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+    search?: string;
+    sort?: string;
+  } = {}
+) {
   const response = await apiClient.get('/admin/products', { params: { page: 1, limit: 20, sort: 'newest', ...params } });
   return { items: unwrap(response) as AdminProduct[], meta: unwrapMeta(response) };
 }
 
-export async function updateAdminProduct(id: string, body: Partial<Pick<AdminProduct, 'name' | 'description' | 'shortDescription' | 'category' | 'brand' | 'price' | 'compareAtPrice'>>) {
+export async function updateAdminProduct(
+  id: string,
+  body: Partial<Pick<AdminProduct, 'name' | 'description' | 'shortDescription' | 'category' | 'brand' | 'price' | 'compareAtPrice'>>
+) {
   const response = await apiClient.patch(`/admin/products/${id}`, body);
   return unwrap(response) as AdminProduct;
 }

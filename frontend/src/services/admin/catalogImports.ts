@@ -67,11 +67,7 @@ export async function listCatalogImports(page = 1, limit = 10) {
   };
 }
 
-export async function uploadCatalogCsv(input: {
-  supplierId: string;
-  file: File;
-  fulfillmentType?: 'DROPSHIP' | 'OWN_STOCK';
-}) {
+export async function uploadCatalogCsv(input: { supplierId: string; file: File; fulfillmentType?: 'DROPSHIP' | 'OWN_STOCK' }) {
   const response = await apiClient.post('/admin/catalog-imports', input.file, {
     params: {
       supplierId: input.supplierId,

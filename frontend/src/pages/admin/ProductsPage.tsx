@@ -1,7 +1,14 @@
 import * as React from 'react';
 import { CheckCircle2, RefreshCw, Search, Send, Tag } from 'lucide-react';
 import { Alert, Badge, Button, Card, EmptyState, Input, Select, Spinner } from '../../components/ui';
-import { listAdminProducts, previewPublication, publishProducts, updateAdminProduct, type AdminProduct, type PublicationCandidate } from '../../services/admin/catalog';
+import {
+  listAdminProducts,
+  previewPublication,
+  publishProducts,
+  updateAdminProduct,
+  type AdminProduct,
+  type PublicationCandidate,
+} from '../../services/admin/catalog';
 
 function message(error: any) {
   return error?.normalizedMessage || error?.response?.data?.error?.message || error?.message || 'Something went wrong.';
@@ -37,7 +44,9 @@ export default function ProductsPage() {
     }
   }, [status, query]);
 
-  React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => {
+    void load();
+  }, [load]);
 
   const toggle = (id: string) => {
     setSelected(current => {
@@ -55,7 +64,7 @@ export default function ProductsPage() {
     setError('');
     try {
       const updated = await updateAdminProduct(product.id, { price });
-      setProducts(current => current.map(item => item.id === product.id ? updated : item));
+      setProducts(current => current.map(item => (item.id === product.id ? updated : item)));
       setNotice(`Saved manual price for ${updated.name}. It is now protected as an admin override.`);
     } catch (err) {
       setError(message(err));
@@ -103,10 +112,13 @@ export default function ProductsPage() {
         <div>
           <Badge>J3 · Catalog</Badge>
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight">Catalog Review & Publication</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Review imported DRAFT products, correct selling prices, run the publication gate, then publish deliberately.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Review imported DRAFT products, correct selling prices, run the publication gate, then publish deliberately.
+          </p>
         </div>
         <Button className="bg-muted text-foreground hover:bg-border" onClick={() => void load()} disabled={loading}>
-          <RefreshCw size={16} aria-hidden="true" /><span className="ml-2">Refresh</span>
+          <RefreshCw size={16} aria-hidden="true" />
+          <span className="ml-2">Refresh</span>
         </Button>
       </div>
 
@@ -120,15 +132,25 @@ export default function ProductsPage() {
             <option value="ACTIVE">Published products</option>
             <option value="ARCHIVED">Archived products</option>
           </Select>
-          <Input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, SKU or slug" onKeyDown={event => event.key === 'Enter' && setQuery(search.trim())} />
-          <Button onClick={() => setQuery(search.trim())}><Search size={16} aria-hidden="true" /><span className="ml-2">Search</span></Button>
+          <Input
+            value={search}
+            onChange={event => setSearch(event.target.value)}
+            placeholder="Search name, SKU or slug"
+            onKeyDown={event => event.key === 'Enter' && setQuery(search.trim())}
+          />
+          <Button onClick={() => setQuery(search.trim())}>
+            <Search size={16} aria-hidden="true" />
+            <span className="ml-2">Search</span>
+          </Button>
         </div>
       </Card>
 
       {selected.size ? (
         <Card className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm"><strong>{selected.size}</strong> selected</div>
+            <div className="text-sm">
+              <strong>{selected.size}</strong> selected
+            </div>
             <div className="flex gap-2">
               <Button className="bg-muted text-foreground hover:bg-border" onClick={preview} disabled={Boolean(busy)}>
                 {busy === 'preview' ? <Spinner label="Checking publication" /> : <CheckCircle2 size={16} aria-hidden="true" />}
@@ -160,7 +182,9 @@ export default function ProductsPage() {
       ) : null}
 
       {loading ? (
-        <Card className="p-8"><Spinner label="Loading products" /></Card>
+        <Card className="p-8">
+          <Spinner label="Loading products" />
+        </Card>
       ) : !products.length ? (
         <EmptyState title="No products found">Try another status or search. Imported supplier products will appear here as DRAFT.</EmptyState>
       ) : (
@@ -169,19 +193,32 @@ export default function ProductsPage() {
             <table className="w-full min-w-[1050px] text-left text-sm">
               <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Select</th><th className="px-4 py-3">Product</th><th className="px-4 py-3">Source</th>
-                  <th className="px-4 py-3">Cost</th><th className="px-4 py-3">Selling price</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Updated</th>
+                  <th className="px-4 py-3">Select</th>
+                  <th className="px-4 py-3">Product</th>
+                  <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Cost</th>
+                  <th className="px-4 py-3">Selling price</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Updated</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {products.map(product => (
                   <tr key={product.id} className="align-top">
-                    <td className="px-4 py-4"><input type="checkbox" checked={selected.has(product.id)} onChange={() => toggle(product.id)} aria-label={`Select ${product.name}`} /></td>
+                    <td className="px-4 py-4">
+                      <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggle(product.id)} aria-label={`Select ${product.name}`} />
+                    </td>
                     <td className="px-4 py-4">
                       <div className="font-bold">{product.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{product.sku} · {product.category}{product.brand ? ` · ${product.brand}` : ''}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {product.sku} · {product.category}
+                        {product.brand ? ` · ${product.brand}` : ''}
+                      </div>
                     </td>
-                    <td className="px-4 py-4"><Badge>{product.fulfillmentType}</Badge><div className="mt-1 text-xs text-muted-foreground">{product.sourceType || 'MANUAL'}</div></td>
+                    <td className="px-4 py-4">
+                      <Badge>{product.fulfillmentType}</Badge>
+                      <div className="mt-1 text-xs text-muted-foreground">{product.sourceType || 'MANUAL'}</div>
+                    </td>
                     <td className="px-4 py-4">{money(product.costPrice, product.currency)}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
@@ -199,7 +236,9 @@ export default function ProductsPage() {
                       </div>
                       {product.sellingPriceOverridden ? <div className="mt-1 text-xs text-muted-foreground">Manual override</div> : null}
                     </td>
-                    <td className="px-4 py-4"><Badge>{product.status}</Badge></td>
+                    <td className="px-4 py-4">
+                      <Badge>{product.status}</Badge>
+                    </td>
                     <td className="px-4 py-4 text-xs text-muted-foreground">{product.updatedAt ? new Date(product.updatedAt).toLocaleDateString() : '—'}</td>
                   </tr>
                 ))}
