@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { Box, Container, CssBaseline } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import NavigationBar from './components/NavigationBar';
@@ -22,6 +22,10 @@ import Privacy from './pages/Privacy';
 import ShippingReturns from './pages/ShippingReturns';
 import OrderTracking from './pages/OrderTracking';
 import ScrollToTop from './components/ScrollToTop';
+import { AdminGuard } from './components/admin/AdminGuard';
+import { AdminLayout } from './components/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminPlaceholder from './pages/admin/AdminPlaceholder';
 import { fetchAllProducts } from './services/catalog';
 import { useNotifier } from './context/NotificationProvider';
 
@@ -194,6 +198,27 @@ function App() {
     },
     [notify]
   );
+
+  const isAdminRoute = window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/');
+
+  if (isAdminRoute) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route element={<AdminGuard><AdminLayout /></AdminGuard>}>
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/imports" element={<AdminPlaceholder />} />
+            <Route path="/admin/products" element={<AdminPlaceholder />} />
+            <Route path="/admin/pricing" element={<AdminPlaceholder />} />
+            <Route path="/admin/orders" element={<AdminPlaceholder />} />
+            <Route path="/admin/suppliers" element={<AdminPlaceholder />} />
+            <Route path="/admin/customers" element={<AdminPlaceholder />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/admin" replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
