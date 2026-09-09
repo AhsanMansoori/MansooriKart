@@ -26,6 +26,7 @@ import { AdminGuard } from './components/admin/AdminGuard';
 import { AdminLayout } from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPlaceholder from './pages/admin/AdminPlaceholder';
+import CatalogImportsPage from './pages/admin/CatalogImportsPage';
 import { fetchAllProducts } from './services/catalog';
 import { useNotifier } from './context/NotificationProvider';
 
@@ -207,7 +208,7 @@ function App() {
         <Routes>
           <Route element={<AdminGuard><AdminLayout /></AdminGuard>}>
             <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/imports" element={<AdminPlaceholder />} />
+            <Route path="/admin/imports" element={<CatalogImportsPage />} />
             <Route path="/admin/products" element={<AdminPlaceholder />} />
             <Route path="/admin/pricing" element={<AdminPlaceholder />} />
             <Route path="/admin/orders" element={<AdminPlaceholder />} />
