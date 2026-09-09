@@ -1,0 +1,47 @@
+name: Phase J one-shot formatter
+
+on:
+  push:
+    branches:
+      - phase-j-admin-foundation
+    paths:
+      - '.github/workflows/phase-j-format.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: phase-j-admin-foundation
+          fetch-depth: 0
+
+      - name: Use Node.js 26
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Format repository
+        run: npm run format
+
+      - name: Commit formatting changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/components/admin/AdminLayout.tsx                   frontend/src/components/ui/index.tsx                   frontend/src/pages/admin/CatalogImportsPage.tsx                   frontend/src/pages/admin/OrdersPage.tsx                   frontend/src/pages/admin/PricingPage.tsx                   frontend/src/pages/admin/ProductsPage.tsx                   frontend/src/services/admin/catalog.ts                   frontend/src/services/admin/catalogImports.ts                   frontend/src/services/admin/orders.ts
+          git commit -m "chore: format Phase J admin files"
+          git push origin HEAD:phase-j-admin-foundation
