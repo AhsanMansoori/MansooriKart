@@ -27,6 +27,8 @@ import OrderTracking from './pages/OrderTracking';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminPlaceholder from './pages/admin/AdminPlaceholder';
 import CatalogImportsPage from './pages/admin/CatalogImportsPage';
+import ProductsPage from './pages/admin/ProductsPage';
+import PricingPage from './pages/admin/PricingPage';
 import { fetchAllProducts } from './services/catalog';
 import { useNotifier } from './context/NotificationProvider';
 
@@ -213,8 +215,8 @@ function App() {
         <Route path="/admin" element={<ProtectedAdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="imports" element={<CatalogImportsPage />} />
-          <Route path="products" element={<AdminPlaceholder />} />
-          <Route path="pricing" element={<AdminPlaceholder />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="pricing" element={<PricingPage />} />
           <Route path="orders" element={<AdminPlaceholder />} />
           <Route path="suppliers" element={<AdminPlaceholder />} />
           <Route path="customers" element={<AdminPlaceholder />} />
