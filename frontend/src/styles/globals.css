@@ -2,34 +2,295 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { 
-    color: #16324f; 
-    background: #f8fafc; 
-    font-family: Poppins, ui-sans-serif, system-ui, sans-serif; 
+:root {
+  /* ========================================
+     MANSOORIKART — BRAND
+     ======================================== */
+
+  /* Primary Mint / Emerald */
+  --primary: #18c19f;
+  --primary-foreground: #101828;
+
+  --primary-light: #8bf3af;
+  --primary-dark: #0d8f78;
+
+  --primary-soft: #ecfdf7;
+  --primary-soft-hover: #d8f8ec;
+
+  /* Secondary / Promotion */
+  --accent: #ffce00;
+  --accent-foreground: #101828;
+
+  --accent-light: #feff7d;
+  --accent-soft: #fff8d6;
+
+
+  /* ========================================
+     PAGE / SURFACES
+     ======================================== */
+
+  --background: #f7faf9;
+  --foreground: #475467;
+
+  --card: #ffffff;
+  --card-foreground: #101828;
+
+  --surface: #ffffff;
+  --surface-soft: #f8fafb;
+
+  --dark-surface: #102a2a;
+  --dark-surface-foreground: #ffffff;
+
+
+  /* ========================================
+     TYPOGRAPHY
+     ======================================== */
+
+  --heading: #101828;
+
+  --foreground: #475467;
+  --foreground-secondary: #667085;
+
+  --muted: #ecfdf7;
+  --muted-foreground: #98a2b3;
+
+  --placeholder: #98a2b3;
+
+
+  /* ========================================
+     BORDERS / INPUTS
+     ======================================== */
+
+  --border: #e4e7ec;
+  --border-soft: #eef2f1;
+
+  --input: #e4e7ec;
+
+  --ring: #18c19f;
+
+
+  /* ========================================
+     SEMANTIC COLORS
+     ======================================== */
+
+  --success: #12a87a;
+  --success-foreground: #ffffff;
+  --success-soft: #e9fbf4;
+
+  --warning: #f59e0b;
+  --warning-foreground: #101828;
+  --warning-soft: #fff7df;
+
+  --destructive: #e5484d;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fff0f0;
+
+  --info: #2e90fa;
+  --info-foreground: #ffffff;
+  --info-soft: #eff8ff;
+
+
+  /* ========================================
+     GRADIENTS
+     ======================================== */
+
+  --brand-gradient:
+    linear-gradient(
+      135deg,
+      #18c19f 0%,
+      #8bf3af 100%
+    );
+
+  --brand-gradient-hover:
+    linear-gradient(
+      135deg,
+      #0d8f78 0%,
+      #18c19f 100%
+    );
+
+  --promo-gradient:
+    linear-gradient(
+      135deg,
+      #ffce00 0%,
+      #feff7d 100%
+    );
+
+  --hero-gradient:
+    linear-gradient(
+      135deg,
+      #ecfdf7 0%,
+      #ffffff 48%,
+      #fff8d6 100%
+    );
+
+  --dark-gradient:
+    linear-gradient(
+      135deg,
+      #102a2a 0%,
+      #064e46 100%
+    );
+
+
+  /* ========================================
+     GLASSMORPHISM
+     ======================================== */
+
+  --glass-background: rgba(255, 255, 255, 0.78);
+
+  --glass-background-strong:
+    rgba(255, 255, 255, 0.9);
+
+  --glass-border:
+    rgba(255, 255, 255, 0.65);
+
+  --glass-blur: 18px;
+
+
+  /* ========================================
+     SHADOWS
+     ======================================== */
+
+  --shadow-xs:
+    0 1px 2px rgba(16, 42, 42, 0.04);
+
+  --shadow-sm:
+    0 4px 14px rgba(16, 42, 42, 0.06);
+
+  --card-shadow:
+    0 12px 34px rgba(16, 42, 42, 0.08);
+
+  --shadow-lg:
+    0 20px 50px rgba(16, 42, 42, 0.12);
+
+  --glass-shadow:
+    0 8px 32px rgba(16, 42, 42, 0.08);
+
+
+  /* ========================================
+     BORDER RADIUS
+     ======================================== */
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+
+  /* ========================================
+     BASE
+     ======================================== */
+
+  color: var(--foreground);
+  background: var(--background);
+
+  font-family:
+    Poppins,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
-*, *::before, *::after { 
-    box-sizing: border-box; 
+
+/* ========================================
+   RESET
+   ======================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-body { 
-    margin: 0; 
-    min-width: 320px; 
-    background: #f8fafc; 
-    color: #16324f; 
+html {
+  scroll-behavior: smooth;
 }
 
-img { 
-    display: block; 
-    max-width: 100%; 
+body {
+  margin: 0;
+  min-width: 320px;
+
+  background: var(--background);
+  color: var(--foreground);
+
+  font-family:
+    Poppins,
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-::selection { 
-    background: #f5a623; 
-    color: #0d1f33; 
+img {
+  display: block;
+  max-width: 100%;
 }
 
-:focus-visible { 
-    outline: 3px solid #f5a623; 
-    outline-offset: 3px; 
+
+/* ========================================
+   SELECTION
+   ======================================== */
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+
+/* ========================================
+   ACCESSIBILITY / FOCUS
+   ======================================== */
+
+:focus-visible {
+  outline: 3px solid rgba(24, 193, 159, 0.35);
+  outline-offset: 3px;
+}
+
+
+/* ========================================
+   REUSABLE BRAND UTILITIES
+   ======================================== */
+
+@layer utilities {
+  .bg-brand-gradient {
+    background: var(--brand-gradient);
+  }
+
+  .bg-promo-gradient {
+    background: var(--promo-gradient);
+  }
+
+  .bg-hero-gradient {
+    background: var(--hero-gradient);
+  }
+
+  .bg-dark-gradient {
+    background: var(--dark-gradient);
+  }
+
+  .text-heading {
+    color: var(--heading);
+  }
+
+  .glass {
+    background: var(--glass-background);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-strong {
+    background: var(--glass-background-strong);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
 }
