@@ -1,6 +1,6 @@
 {
-  "name": "@mansoorikart/backend",
-  "displayName": "MansooriKart Backend",
+  "name": "@mansoorikart/api",
+  "displayName": "MansooriKart API",
   "version": "1.1.0",
   "description": "MansooriKart API server: TypeScript, Express, MongoDB, and the /api/v1 contract.",
   "private": true,
