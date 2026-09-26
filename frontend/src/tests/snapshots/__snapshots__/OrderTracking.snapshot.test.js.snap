@@ -1,0 +1,124 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`OrderTracking snapshot matches the rendered markup 1`] = `
+<DocumentFragment>
+  <div
+    class="MuiContainer-root MuiContainer-maxWidthMd css-doq7n0-MuiContainer-root"
+  >
+    <div
+      class="MuiStack-root css-fb8lv7-MuiStack-root"
+    >
+      <div
+        class="MuiChip-root MuiChip-outlined MuiChip-sizeMedium MuiChip-colorPrimary MuiChip-outlinedPrimary css-gww9aq-MuiChip-root"
+      >
+        <span
+          class="MuiChip-label MuiChip-labelMedium css-1jzq0dw-MuiChip-label"
+        >
+          Order tracking
+        </span>
+      </div>
+      <h3
+        class="MuiTypography-root MuiTypography-h3 css-1ey9xtw-MuiTypography-root"
+      >
+        Follow your order from checkout to doorstep
+      </h3>
+      <p
+        class="MuiTypography-root MuiTypography-body1 css-81jeky-MuiTypography-root"
+      >
+        Pick one of your orders to see exactly where it is. Updates appear here as our team moves it along.
+      </p>
+    </div>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation0 css-11h37pt-MuiPaper-root"
+    >
+      <div
+        class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation0 MuiAlert-root MuiAlert-colorInfo MuiAlert-standardInfo MuiAlert-standard css-hu7tqv-MuiPaper-root-MuiAlert-root"
+        role="alert"
+      >
+        <div
+          class="MuiAlert-icon css-1ytlwq5-MuiAlert-icon"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeInherit css-1vooibu-MuiSvgIcon-root"
+            data-testid="InfoOutlinedIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20, 12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10, 10 0 0,0 12,2M11,17H13V11H11V17Z"
+            />
+          </svg>
+        </div>
+        <div
+          class="MuiAlert-message css-1pxa9xg-MuiAlert-message"
+        >
+          <div
+            class="MuiTypography-root MuiTypography-body1 MuiTypography-gutterBottom MuiAlertTitle-root css-yslrua-MuiTypography-root-MuiAlertTitle-root"
+          >
+            Sign in to track your order
+          </div>
+          Your orders are private to your account, so tracking is only available once you are signed in.
+        </div>
+        <div
+          class="MuiAlert-action css-ki1hdl-MuiAlert-action"
+        >
+          <a
+            class="MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary css-1knaqv7-MuiButtonBase-root-MuiButton-root"
+            href="/login"
+            tabindex="0"
+          >
+            Sign in
+            <span
+              class="MuiTouchRipple-root css-8je8zh-MuiTouchRipple-root"
+            />
+          </a>
+        </div>
+      </div>
+    </div>
+    <div
+      class="MuiBox-root css-nb25bq"
+    >
+      <div
+        class="MuiStack-root css-xqxc1w-MuiStack-root"
+      >
+        <svg
+          aria-hidden="true"
+          class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-1bptiuh-MuiSvgIcon-root"
+          data-testid="SupportAgentIcon"
+          focusable="false"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M21 12.22C21 6.73 16.74 3 12 3c-4.69 0-9 3.65-9 9.28-.6.34-1 .98-1 1.72v2c0 1.1.9 2 2 2h1v-6.1c0-3.87 3.13-7 7-7s7 3.13 7 7V19h-8v2h8c1.1 0 2-.9 2-2v-1.22c.59-.31 1-.92 1-1.64v-2.3c0-.7-.41-1.31-1-1.62"
+          />
+          <circle
+            cx="9"
+            cy="13"
+            r="1"
+          />
+          <circle
+            cx="15"
+            cy="13"
+            r="1"
+          />
+          <path
+            d="M18 11.03C17.52 8.18 15.04 6 12.05 6c-3.03 0-6.29 2.51-6.03 6.45 2.47-1.01 4.33-3.21 4.86-5.89 1.31 2.63 4 4.44 7.12 4.47"
+          />
+        </svg>
+        <span
+          class="MuiTypography-root MuiTypography-caption css-ol7wxs-MuiTypography-root"
+        >
+          Need a delivery hold, a reroute or help with a return? Visit the 
+          <a
+            href="/support"
+          >
+            Support Centre
+          </a>
+           and our team will coordinate with the courier.
+        </span>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;

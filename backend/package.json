@@ -1,0 +1,50 @@
+{
+  "name": "@mansoorikart/backend",
+  "displayName": "MansooriKart Backend",
+  "version": "1.1.0",
+  "description": "MansooriKart API server: TypeScript, Express, MongoDB, and the /api/v1 contract.",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/server.js",
+  "scripts": {
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "node --import tsx --test --test-concurrency=1 tests/**/*.test.ts",
+    "test:watch": "node --import tsx --test --watch --test-concurrency=1 tests/**/*.test.ts",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage --test-concurrency=1 tests/**/*.test.ts",
+    "admin:bootstrap": "tsx src/scripts/bootstrap-super-admin.ts"
+  },
+  "keywords": [
+    "backend",
+    "server",
+    "express",
+    "mongoose",
+    "ecommerce"
+  ],
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
+    "google-auth-library": "^10.9.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.3",
+    "pdfkit": "^0.20.2",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.4.0",
+    "@types/pdfkit": "^0.17.6",
+    "mongodb-memory-server": "^11.2.0",
+    "supertest": "^7.1.1",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

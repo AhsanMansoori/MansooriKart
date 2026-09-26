@@ -1,0 +1,46 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGO_URI:
+      JWT_SECRET:
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+      # Public Google client id. Empty disables Google sign-in and leaves local sign-in working.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      APP_VERSION: ${APP_VERSION:-}
+    ports:
+      - '${BACKEND_PORT:-5000}:5000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:5000/api/v1/health', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/frontend.Dockerfile
+      args:
+        # nginx serves the bundle only, so the browser calls the backend service directly. The
+        # version is explicit here rather than relying on the client's compatibility upgrade.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000/api/v1}
+        # Public identifier, safe to inline into the bundle. No client secret is ever built in.
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    ports:
+      - '${FRONTEND_PORT:-8080}:80'
+    depends_on:
+      backend:
+        condition: service_healthy

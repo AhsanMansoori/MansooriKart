@@ -1,0 +1,159 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# ---------------------------------------------------------------------------
+# Secrets and environment files
+# Every real .env variant is ignored at any depth. Only the committed example
+# templates are re-included, and they must never contain real values.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+*.env
+!.env.example
+!.env.sample
+!.env.template
+!*.env.example
+
+# Credential material that must never be committed
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets.json
+credentials.json
+serviceAccount*.json
+gha-creds-*.json
+.npmrc
+.netrc
+
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
+.yarn/cache/
+.yarn/install-state.gz
+jspm_packages/
+
+# ---------------------------------------------------------------------------
+# Build output
+# ---------------------------------------------------------------------------
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+*.tsbuildinfo
+
+# ---------------------------------------------------------------------------
+# Test output, coverage and caches
+# ---------------------------------------------------------------------------
+coverage/
+.nyc_output/
+*.lcov
+.cache/
+.turbo/
+.eslintcache
+.parcel-cache/
+.vite/
+.jest-cache/
+test-results/
+playwright-report/
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.pid
+*.pid.lock
+*.seed
+
+# ---------------------------------------------------------------------------
+# Temporary and scratch files
+# ---------------------------------------------------------------------------
+tmp/
+temp/
+.tmp/
+.tmp-*/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+*.pyc
+
+# ---------------------------------------------------------------------------
+# Operating system files
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ---------------------------------------------------------------------------
+# IDE and local machine files
+# ---------------------------------------------------------------------------
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.iml
+*.ipr
+*.iws
+*.sublime-project
+*.sublime-workspace
+.history/
+.kombai/
+
+# ---------------------------------------------------------------------------
+# Local agent/tooling state (machine-specific, not shareable project config)
+# ---------------------------------------------------------------------------
+.claude/settings.local.json
+.claude/*.local.json
+.claude/shell-snapshots/
+.claude/todos/
+.claude/statsig/
+.claude/projects/
+.claude/history.jsonl
+.claude/ide/
+.aider*
+.cursorignore
+
+# ---------------------------------------------------------------------------
+# Deployment / platform local state
+# ---------------------------------------------------------------------------
+.vercel
+.serverless/
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+kubeconfig
+*.kubeconfig
+
+# ---------------------------------------------------------------------------
+# Local database / vector index artifacts
+# ---------------------------------------------------------------------------
+*.faiss
+*.index
+mongodb-binaries/
+data/db/
