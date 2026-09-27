@@ -1,1 +1,51 @@
 @import "tailwindcss";
+
+@theme {
+  --color-brand-teal: #0D9488;
+  --color-brand-teal-dark: #0F766E;
+  --color-brand-mint: #10B981;
+  --color-brand-mint-light: #34D399;
+  --color-brand-navy: #0B192C;
+  --color-brand-navy-light: #152238;
+  --color-brand-navy-dark: #060E18;
+  --color-brand-gold: #F59E0B;
+  --color-brand-gold-light: #FBBF24;
+
+  --color-surface-canvas: #F8FAFC;
+  --color-surface-mint: #F0FDF4;
+  --color-surface-teal: #F0FDFA;
+
+  --shadow-card: 0 4px 20px -2px rgba(11, 25, 44, 0.06), 0 2px 6px -1px rgba(11, 25, 44, 0.02);
+  --shadow-card-hover: 0 14px 34px -4px rgba(13, 148, 136, 0.16), 0 6px 14px -2px rgba(11, 25, 44, 0.05);
+  --shadow-button-primary: 0 4px 14px 0 rgba(16, 185, 129, 0.35);
+
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+}
+
+:root {
+  --bg-gradient-primary: linear-gradient(135deg, #0D9488 0%, #10B981 100%);
+  --bg-gradient-primary-hover: linear-gradient(135deg, #0F766E 0%, #059669 100%);
+}
+
+body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Gradient utility classes */
+.bg-primary-gradient {
+  background-image: linear-gradient(135deg, #0D9488 0%, #10B981 100%);
+}
+
+.bg-primary-gradient-hover:hover {
+  background-image: linear-gradient(135deg, #0F766E 0%, #059669 100%);
+}
+
+.text-primary-gradient {
+  background-image: linear-gradient(135deg, #0D9488 0%, #10B981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

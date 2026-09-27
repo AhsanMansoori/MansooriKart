@@ -1,34 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MansooriKart Storefront (`apps/web`)
+
+Next.js 14+ App Router customer-facing storefront for MansooriKart.
+
+## Environment Variables (`.env.local`)
+
+Create an `.env.local` file in `apps/web/` for local development:
+
+```bash
+# API Base URL pointing to MansooriKart active backend API
+NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+
+# Optional Storefront Settings
+NEXT_PUBLIC_DEFAULT_CURRENCY=AED
+NEXT_PUBLIC_DEFAULT_MARKET=AE
+NEXT_PUBLIC_SITE_NAME="MansooriKart"
+```
 
 ## Getting Started
 
-First, run the development server:
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Shared Components & Tokens:** Imported from `@mansoorikart/ui`.
+- **API Client:** Typed fetch wrapper in `lib/api/` targeting `/api/v1/*` backend endpoints.
+- **Base Shell:** Responsive Header with navigation & cart badge, and Dark Navy Footer with TrustBadges, links, and single-market selector (`AED | English`).
