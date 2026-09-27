@@ -1,35 +1,32 @@
 /**
  * Single source of truth for every marketing, CMS and store-configuration bound.
  *
- * Two rules drive this module. First, defaults here must reproduce the behaviour
- * MansooriKart already shipped: PKR pricing, an `Asia/Karachi` clock, a flat
- * PKR 250 delivery fee waived at PKR 5,000, and no tax. A fresh install that never
- * touches the settings API must check out exactly as it did before Phase H.
+ * Two rules drive this module. First, defaults here establish the UAE market
+ * baseline: AED pricing, an `Asia/Dubai` clock, a flat AED 15 delivery fee
+ * waived at AED 200, and standard 5% UAE VAT.
  * Second, every list, string and collection that an operator can grow is bounded
  * here rather than in a route handler, so the public storefront payload can never
  * become unbounded by configuration alone.
  */
 
-/** Currency. MansooriKart prices in PKR only; there is no conversion layer. */
-export const DEFAULT_CURRENCY = 'PKR';
+/** Currency. MansooriKart prices in AED only; there is no conversion layer. */
+export const DEFAULT_CURRENCY = 'AED';
 /** Presentation of the currency on the storefront. Never affects stored amounts. */
 export const CURRENCY_DISPLAYS: readonly string[] = ['SYMBOL', 'CODE', 'SYMBOL_CODE'];
 export const DEFAULT_CURRENCY_DISPLAY = 'SYMBOL';
 /** Store clock. Persisted timestamps stay UTC; this is a display timezone only. */
-export const DEFAULT_TIMEZONE = 'Asia/Karachi';
-export const DEFAULT_LOCALE = 'en-PK';
-export const SUPPORTED_LOCALES: readonly string[] = ['en-PK', 'en-US', 'ur-PK'];
+export const DEFAULT_TIMEZONE = 'Asia/Dubai';
+export const DEFAULT_LOCALE = 'en-AE';
+export const SUPPORTED_LOCALES: readonly string[] = ['en-AE'];
 
 /**
- * Shipping defaults. These are the constants checkout used before shipping became
- * configurable, kept here so "unconfigured" and "configured to the old values" are
- * the same code path.
+ * Shipping defaults. Editable at runtime via store settings.
  */
 export const SHIPPING_DEFAULTS = {
   enabled: true,
-  standardFee: 250,
+  standardFee: 15,
   freeShippingEnabled: true,
-  freeShippingThreshold: 5000,
+  freeShippingThreshold: 200,
   codEnabled: true,
   /** Optional per-city fee overrides. Bounded so a config edit cannot bloat checkout. */
   maxCityOverrides: 50,
@@ -38,10 +35,9 @@ export const SHIPPING_DEFAULTS = {
 } as const;
 
 /**
- * Tax defaults. Disabled, which is the pre-Phase-H behaviour (`tax = 0` on every
- * order). Enabling it is an explicit, audited admin decision.
+ * Tax defaults. UAE standard VAT is 5%, prices exclusive, displayed separately.
  */
-export const TAX_DEFAULTS = { enabled: false, defaultRate: 0, pricesIncludeTax: false, displayTaxSeparately: true, label: 'Tax', maxRate: 100 } as const;
+export const TAX_DEFAULTS = { enabled: true, defaultRate: 5, pricesIncludeTax: false, displayTaxSeparately: true, label: 'VAT', maxRate: 100 } as const;
 
 /** Order-number prefix and low-stock threshold surfaced through store settings. */
 export const STORE_DEFAULTS = { orderPrefix: 'MK', lowStockThreshold: 5, maxLowStockThreshold: 10_000 } as const;

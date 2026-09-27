@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '../../../config/storefront.js';
 
 export const objectId = /^[a-f\d]{24}$/i;
 export const idParams = z.object({ id: z.string().regex(objectId) }).strict();
@@ -45,7 +46,7 @@ export const productFields = {
     .trim()
     .toUpperCase()
     .regex(/^[A-Z]{3}$/)
-    .default('PKR'),
+    .default(DEFAULT_CURRENCY),
   stock: z.number().int().min(0).max(10_000_000).default(0),
   lowStockThreshold: z.number().int().min(0).max(10_000_000).default(5),
   status: status.default('DRAFT'),

@@ -106,7 +106,7 @@ test('orders and sales ERP preserve ownership, snapshots, workflows, returns, re
     assert.equal(r.status, 200);
     r = await request(app).get('/api/v1/admin/sales/dashboard?range=30d').set('Authorization', `Bearer ${st}`);
     assert.equal(r.status, 200);
-    assert.equal(r.body.data.realizedRevenue, 1250);
+    assert.equal(r.body.data.realizedRevenue, 1050);
     assert.equal(r.body.data.refunds, 500);
     r = await request(app).get('/api/v1/admin/sales/analytics?range=30d').set('Authorization', `Bearer ${st}`);
     assert.equal(r.status, 200);

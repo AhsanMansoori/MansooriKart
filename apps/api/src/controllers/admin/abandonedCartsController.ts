@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { DEFAULT_CURRENCY } from '../../config/storefront.js';
 import { Cart } from '../../models/cart.js';
 import { Product } from '../../models/product.js';
 import { sendSuccess } from '../../utils/api-response.js';
@@ -39,7 +40,7 @@ export const listAbandonedCarts = async (request: Request, response: Response, n
         itemCount,
         distinctItems: (cart.items ?? []).length,
         estimatedValue: Number(estimatedValue.toFixed(2)),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         lastActivityAt: cart.updatedAt,
         ageHours: Math.floor((Date.now() - new Date(cart.updatedAt).getTime()) / 3600000),
         createdAt: cart.createdAt,

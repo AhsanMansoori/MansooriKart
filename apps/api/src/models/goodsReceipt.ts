@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 
 /**
  * Immutable record of a physical delivery against a purchase order. Only
@@ -31,7 +32,7 @@ const goodsReceiptSchema = new Schema(
     totalAccepted: { type: Number, required: true, min: 0, default: 0 },
     totalRejected: { type: Number, required: true, min: 0, default: 0 },
     acceptedValue: { type: Number, required: true, min: 0, default: 0 },
-    currency: { type: String, default: 'PKR', uppercase: true, maxlength: 3 },
+    currency: { type: String, default: DEFAULT_CURRENCY, uppercase: true, maxlength: 3 },
     receivedAt: { type: Date, default: Date.now, index: true },
     note: { type: String, trim: true, maxlength: 2000 },
     receivedBy: { type: Schema.Types.ObjectId, ref: 'User' },
@@ -72,7 +73,7 @@ const purchaseReturnSchema = new Schema(
     items: { type: [purchaseReturnItemSchema], default: [] },
     totalQuantity: { type: Number, required: true, min: 0, default: 0 },
     returnedValue: { type: Number, required: true, min: 0, default: 0 },
-    currency: { type: String, default: 'PKR', uppercase: true, maxlength: 3 },
+    currency: { type: String, default: DEFAULT_CURRENCY, uppercase: true, maxlength: 3 },
     reason: { type: String, required: true, trim: true, maxlength: 500 },
     returnedAt: { type: Date, default: Date.now, index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },

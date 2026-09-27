@@ -67,10 +67,10 @@ test('the public storefront serves eligible content only and never leaks interna
 
     /* ------------ §63 a DRAFT supplier-import product exists and must stay invisible */
     const shared = {
-      description: 'A phone for the Pakistan market.',
+      description: 'A phone for the UAE market.',
       category: 'Mobile Phones',
       image: 'https://cdn.mansoorikart.test/p.jpg',
-      currency: 'PKR',
+      currency: 'AED',
     };
     const live = await Product.create({
       ...shared,

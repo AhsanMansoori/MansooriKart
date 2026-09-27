@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
+
 export const asId = (value: { _id?: { toString(): string } } | null | undefined): string | undefined => value?._id?.toString();
 export const user = (value: Record<string, unknown> & { _id?: { toString(): string } }) => ({
   id: asId(value),
@@ -63,7 +65,7 @@ export const product = (value: Record<string, unknown> & { _id?: { toString(): s
   images: value.images || (value.image ? [{ url: value.image, alt: value.name, position: 0 }] : []),
   price: value.price,
   compareAtPrice: value.compareAtPrice,
-  currency: value.currency || 'PKR',
+  currency: value.currency || DEFAULT_CURRENCY,
   availableStock: (value.publicAvailability as any)?.availableStock ?? ((value.publicAvailability as any)?.canPurchase ? null : value.stock),
   availability: value.publicAvailability,
   featured: Boolean(value.featured),
@@ -118,7 +120,7 @@ export const customerOrder = (value: Record<string, any>) => ({
   shipping: value.shipping,
   tax: value.tax,
   total: value.total,
-  currency: value.currency ?? 'PKR',
+  currency: value.currency ?? DEFAULT_CURRENCY,
   coupon: value.coupon ? { code: value.coupon.code, type: value.coupon.type, value: value.coupon.value, actualDiscount: value.coupon.actualDiscount } : null,
   paymentMethod: value.paymentMethod,
   paymentStatus: value.paymentStatus,

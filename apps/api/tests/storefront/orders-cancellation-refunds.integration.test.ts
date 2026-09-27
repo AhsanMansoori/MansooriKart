@@ -152,7 +152,7 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
 
     // ---- Refund idempotency and cap safety on a delivered, paid order. ----
     const payable = await placeOrder('cancel-order-refundable', 1);
-    assert.equal(payable.total, 1250);
+    assert.equal(payable.total, 1050);
     for (const status of ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED'])
       assert.equal(
         (await request(app).patch(`/api/v1/admin/orders/${payable._id}/status`).set('Authorization', `Bearer ${st}`).send({ status, reason: 'Refund fixture' }))
@@ -181,7 +181,7 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
     assert.equal(replay.body.data.refundNumber, created.body.data.refundNumber);
     assert.equal(await Refund.countDocuments({ order: payable._id }), 1);
     assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 500);
-    // A replay must not be able to smuggle a different amount through the same key.
+    // A replay must not be able to smuggly a different amount through the same key.
     const tampered = await postRefund('refund-idem-key-1', 900);
     assert.equal(tampered.status, 201);
     assert.equal(tampered.body.data.amount, 500);
@@ -202,11 +202,11 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
     assert.equal(await Refund.countDocuments({ order: payable._id, idempotencyKey: 'refund-idem-key-2' }), 1);
     assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 700);
 
-    // Refund cap: 1250 total, 700 already refunded, 550 remaining. Two concurrent 500s must not
+    // Refund cap: 1050 total, 700 already refunded, 350 remaining. Two concurrent 300s must not
     // both be accepted, and the accepted total may never exceed the order total.
-    const remaining = 1250 - 700;
-    assert.equal(remaining, 550);
-    const capRace = await Promise.all([postRefund('refund-cap-key-a', 500), postRefund('refund-cap-key-b', 500)]);
+    const remaining = 1050 - 700;
+    assert.equal(remaining, 350);
+    const capRace = await Promise.all([postRefund('refund-cap-key-a', 300), postRefund('refund-cap-key-b', 300)]);
     assert.equal(
       capRace.filter(response => response.status === 201).length,
       1,
@@ -220,10 +220,10 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
       { $match: { order: new mongoose.Types.ObjectId(String(payable._id)), status: { $ne: 'FAILED' } } },
       { $group: { _id: null, value: { $sum: '$amount' } } },
     ]);
-    assert.equal(accepted[0].value, 1200);
-    assert.ok(accepted[0].value <= 1250, 'accepted refunds may never exceed the order total');
+    assert.equal(accepted[0].value, 1000);
+    assert.ok(accepted[0].value <= 1050, 'accepted refunds may never exceed the order total');
     const afterRace = await Order.findById(payable._id).lean();
-    assert.equal(afterRace!.refundedTotal, 1200);
+    assert.equal(afterRace!.refundedTotal, 1000);
     assert.ok(afterRace!.refundedTotal <= afterRace!.total);
 
     // Over-cap and non-positive amounts are refused outright.
@@ -235,7 +235,7 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
     // A FAILED refund releases its headroom so the accounting matches the sales dashboard.
     const failing = await postRefund('refund-release-key', 50);
     assert.equal(failing.status, 201);
-    assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1250);
+    assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1050);
     const failureRace = await Promise.all([
       request(app).patch(`/api/v1/admin/refunds/${failing.body.data._id}/status`).set('Authorization', `Bearer ${st}`).send({ status: 'FAILED' }),
       request(app).patch(`/api/v1/admin/refunds/${failing.body.data._id}/status`).set('Authorization', `Bearer ${st}`).send({ status: 'FAILED' }),
@@ -244,14 +244,14 @@ test('cancellation restores inventory exactly once and refunds stay idempotent a
       failureRace.map(response => response.status),
       [200, 200]
     );
-    assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1200);
+    assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1000);
     assert.equal(await AuditLog.countDocuments({ resourceId: String(failing.body.data._id), action: 'REFUND_STATUS_UPDATED' }), 1);
     assert.equal(
       (await request(app).patch(`/api/v1/admin/refunds/${failing.body.data._id}/status`).set('Authorization', `Bearer ${st}`).send({ status: 'FAILED' }))
         .status,
       200
     );
-    assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1200);
+    assert.equal((await Order.findById(payable._id).lean())!.refundedTotal, 1000);
     assert.equal((await postRefund('refund-after-release-key', 50)).status, 201);
   } finally {
     await mongoose.disconnect();

@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 
 /**
  * Procurement counterparty. Suppliers are an operational contact record only:
@@ -21,7 +22,7 @@ const supplierSchema = new Schema(
     taxId: { type: String, trim: true, maxlength: 60 },
     paymentTerms: { type: String, enum: ['PREPAID', 'COD', 'NET_7', 'NET_15', 'NET_30', 'NET_45', 'NET_60'], default: 'NET_30' },
     leadTimeDays: { type: Number, min: 0, max: 365 },
-    currency: { type: String, default: 'PKR', uppercase: true, maxlength: 3 },
+    currency: { type: String, default: DEFAULT_CURRENCY, uppercase: true, maxlength: 3 },
     notes: { type: String, trim: true, maxlength: 2000 },
     status: { type: String, enum: ['ACTIVE', 'INACTIVE', 'ARCHIVED'], default: 'ACTIVE', index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },

@@ -1,5 +1,6 @@
 import { type NextFunction, type Response } from 'express';
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '../../config/storefront.js';
 import { AuditLog } from '../../models/auditLog.js';
 import { GoodsReceipt, PurchaseReturn } from '../../models/goodsReceipt.js';
 import { PurchaseOrder } from '../../models/purchaseOrder.js';
@@ -58,7 +59,7 @@ const serializeSupplier = (document: any) => ({
   taxId: document.taxId ?? null,
   paymentTerms: document.paymentTerms ?? null,
   leadTimeDays: document.leadTimeDays ?? null,
-  currency: document.currency ?? 'PKR',
+  currency: document.currency ?? DEFAULT_CURRENCY,
   notes: document.notes ?? null,
   status: document.status,
   createdAt: document.createdAt,
@@ -89,7 +90,7 @@ const serializePurchaseOrder = (document: any) => ({
     quantityReturned: item.quantityReturned ?? 0,
     quantityOutstanding: Math.max(0, item.quantityOrdered - (item.quantityReceived ?? 0)),
   })),
-  currency: document.currency ?? 'PKR',
+  currency: document.currency ?? DEFAULT_CURRENCY,
   subtotal: document.subtotal,
   shippingCost: document.shippingCost ?? 0,
   taxAmount: document.taxAmount ?? 0,
@@ -137,7 +138,7 @@ const serializeReceipt = (document: any) => ({
   totalAccepted: document.totalAccepted,
   totalRejected: document.totalRejected,
   acceptedValue: document.acceptedValue,
-  currency: document.currency ?? 'PKR',
+  currency: document.currency ?? DEFAULT_CURRENCY,
   receivedAt: document.receivedAt,
   note: document.note ?? null,
   receivedBy: document.receivedBy ? String(document.receivedBy) : null,
@@ -162,7 +163,7 @@ const serializePurchaseReturn = (document: any) => ({
   })),
   totalQuantity: document.totalQuantity,
   returnedValue: document.returnedValue,
-  currency: document.currency ?? 'PKR',
+  currency: document.currency ?? DEFAULT_CURRENCY,
   reason: document.reason,
   returnedAt: document.returnedAt,
   createdBy: document.createdBy ? String(document.createdBy) : null,
@@ -300,7 +301,7 @@ export async function getSupplierPerformance(request: any, response: Response, n
         acceptedValue: money(receipts.value),
       },
       supplierReturns: { count: returns.returns, units: returns.quantity, value: money(returns.value) },
-      currency: supplier.currency ?? 'PKR',
+      currency: supplier.currency ?? DEFAULT_CURRENCY,
     });
   } catch (error) {
     return next(error);
@@ -586,12 +587,12 @@ export async function getPurchasingDashboard(request: any, response: Response, n
         status: row.status,
         supplier: row.supplier ? { id: String(row.supplier._id), name: row.supplier.name, code: row.supplier.code } : null,
         total: row.total,
-        currency: row.currency ?? 'PKR',
+        currency: row.currency ?? DEFAULT_CURRENCY,
         expectedDate: row.expectedDate ?? null,
         createdAt: row.createdAt,
       })),
       periodDays: query.days,
-      currency: 'PKR',
+      currency: DEFAULT_CURRENCY,
       basis: 'PROCUREMENT_COMMITMENT_AND_GOODS_IN',
     });
   } catch (error) {
@@ -627,7 +628,7 @@ export async function getPurchasingReports(request: any, response: Response, nex
           unitsRejected: row.unitsRejected,
           value: money(row.value),
         })),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
       });
     }
     if (query.groupBy === 'product') {
@@ -660,7 +661,7 @@ export async function getPurchasingReports(request: any, response: Response, nex
           value: money(row.value),
           latestUnitCost: row.latestUnitCost ?? null,
         })),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
       });
     }
     const rows = await PurchaseOrder.aggregate([
@@ -690,7 +691,7 @@ export async function getPurchasingReports(request: any, response: Response, nex
         unitsReceived: row.unitsReceived,
         fulfillmentRate: row.unitsOrdered ? money((row.unitsReceived / row.unitsOrdered) * 100) : null,
       })),
-      currency: 'PKR',
+      currency: DEFAULT_CURRENCY,
     });
   } catch (error) {
     return next(error);

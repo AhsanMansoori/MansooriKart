@@ -1,4 +1,5 @@
 import { model, models, Schema, type Model } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 
 const item = new Schema(
   {
@@ -68,7 +69,7 @@ const orderSchema = new Schema(
     // Authoritative accumulator of non-FAILED refunded value. Guarded by an atomic conditional
     // $inc so concurrent refunds can never exceed `total`. Never client-controlled.
     refundedTotal: { type: Number, default: 0, min: 0 },
-    currency: { type: String, default: 'PKR' },
+    currency: { type: String, default: DEFAULT_CURRENCY },
     coupon: { type: coupon },
     paymentMethod: { type: String, enum: ['CASH_ON_DELIVERY'], required: true },
     paymentStatus: { type: String, enum: ['PENDING', 'UNPAID', 'PAID', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED'], default: 'UNPAID' },

@@ -69,7 +69,7 @@ test('abandoned carts are derived safely from persisted carts and sales figures 
     assert.equal(abandoned.distinctItems, 3);
     // 2 x 500 + 1 x 2000, with the archived line excluded from sellable value.
     assert.equal(abandoned.estimatedValue, 3000);
-    assert.equal(abandoned.currency, 'PKR');
+    assert.equal(abandoned.currency, 'AED');
     assert.ok(abandoned.ageHours >= 29 && abandoned.ageHours <= 31);
     assert.ok(abandoned.lastActivityAt && abandoned.createdAt && abandoned.updatedAt);
     assert.ok(!JSON.stringify(r.body).toLowerCase().includes('password'));
@@ -150,9 +150,9 @@ test('abandoned carts are derived safely from persisted carts and sales figures 
           200
         );
     };
-    // Delivered and paid: the only realized revenue. 4 x 500 + 250 shipping = 2250.
+    // Delivered and paid: the only realized revenue. 4 x 500 = 2000 subtotal, 0 shipping, 100 VAT = 2100.
     const realizedOrder = await place('sales-realized', 4);
-    assert.equal(realizedOrder.total, 2250);
+    assert.equal(realizedOrder.total, 2100);
     await advance(String(realizedOrder._id), ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED']);
     assert.equal(
       (
@@ -165,15 +165,15 @@ test('abandoned carts are derived safely from persisted carts and sales figures 
     );
     // Delivered but COD never collected: gross only, never realized.
     const unpaidOrder = await place('sales-unpaid-cod', 2);
-    assert.equal(unpaidOrder.total, 1250);
+    assert.equal(unpaidOrder.total, 1050);
     await advance(String(unpaidOrder._id), ['CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED']);
     assert.equal((await Order.findById(unpaidOrder._id).lean())!.paymentStatus, 'UNPAID');
     // Cancelled: gross only, never realized.
     const cancelledOrder = await place('sales-cancelled', 1);
-    assert.equal(cancelledOrder.total, 750);
+    assert.equal(cancelledOrder.total, 525);
     assert.equal((await request(app).post(`/api/v1/admin/orders/${cancelledOrder._id}/cancel`).set('Authorization', `Bearer ${st}`).send({})).status, 200);
 
-    const gross = 2250 + 1250 + 750;
+    const gross = 2100 + 1050 + 525;
     // One counted refund and one FAILED refund that must be excluded.
     assert.equal(
       (
@@ -206,7 +206,7 @@ test('abandoned carts are derived safely from persisted carts and sales figures 
     // GROSS SALES = sum of order.total for every order created in range, any status.
     assert.equal(dashboard.grossSales, gross);
     // REALIZED REVENUE = sum of order.total where orderStatus DELIVERED and paymentStatus PAID.
-    assert.equal(dashboard.realizedRevenue, 2250);
+    assert.equal(dashboard.realizedRevenue, 2100);
     // REFUNDS = sum of refund.amount for refunds created in range whose status is not FAILED.
     assert.equal(dashboard.refunds, 300);
     // NET SALES = GROSS SALES - REFUNDS.
@@ -245,7 +245,7 @@ test('abandoned carts are derived safely from persisted carts and sales figures 
     assert.equal(r.body.data.salesByDate.length, 1);
     assert.equal(r.body.data.salesByDate[0].orders, 3);
     assert.equal(r.body.data.salesByDate[0].grossSales, gross);
-    assert.equal(r.body.data.salesByDate[0].realizedRevenue, 2250);
+    assert.equal(r.body.data.salesByDate[0].realizedRevenue, 2100);
     const breakdown = new Map<string, number>(r.body.data.statusBreakdown.map((entry: any) => [entry.status, entry.count]));
     assert.equal(breakdown.get('DELIVERED'), 2);
     assert.equal(breakdown.get('CANCELLED'), 1);

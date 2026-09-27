@@ -1,6 +1,7 @@
 import { type NextFunction, type Response } from 'express';
 import { Types } from 'mongoose';
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '../../config/storefront.js';
 import { Address } from '../../models/address.js';
 import { AuditLog } from '../../models/auditLog.js';
 import { Cart } from '../../models/cart.js';
@@ -131,7 +132,7 @@ const withStats = (document: any, now: number) => {
     ...stats,
     averageOrderValue: stats.totalOrders ? round(stats.grossSpend / stats.totalOrders) : 0,
     segment: segmentFor(stats, now),
-    currency: 'PKR',
+    currency: DEFAULT_CURRENCY,
   };
 };
 
@@ -206,7 +207,7 @@ export async function getCustomerAnalytics(request: any, response: Response, nex
       },
       topCustomers: enriched.slice(0, query.limit),
       periodDays: query.days,
-      currency: 'PKR',
+      currency: DEFAULT_CURRENCY,
     });
   } catch (error) {
     return next(error);
@@ -262,7 +263,7 @@ export async function getCustomerDetail(request: any, response: Response, next: 
         paymentStatus: order.paymentStatus,
         paymentMethod: order.paymentMethod,
         total: order.total,
-        currency: order.currency ?? 'PKR',
+        currency: order.currency ?? DEFAULT_CURRENCY,
         createdAt: order.createdAt,
       })),
       cart: cart
@@ -327,7 +328,7 @@ export async function getCustomerOrders(request: any, response: Response, next: 
         paymentStatus: order.paymentStatus,
         paymentMethod: order.paymentMethod,
         total: order.total,
-        currency: order.currency ?? 'PKR',
+        currency: order.currency ?? DEFAULT_CURRENCY,
         createdAt: order.createdAt,
       })),
       200,

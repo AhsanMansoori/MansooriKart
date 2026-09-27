@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { DEFAULT_CURRENCY } from '../../config/storefront.js';
 import { isSupplierStockStale, SUPPLIER_STOCK_STALE_AFTER_HOURS } from '../../config/dropshipping.js';
 import { Product } from '../../models/product.js';
 import { Supplier } from '../../models/supplier.js';
@@ -32,7 +33,7 @@ const sourceView = (source: any, suppliers: Map<string, any>, products: Map<stri
     supplierSku: source.supplierSku,
     supplierProductName: source.supplierProductName ?? null,
     supplierCost: source.supplierCost ?? null,
-    currency: source.currency ?? 'PKR',
+    currency: source.currency ?? DEFAULT_CURRENCY,
     supplierStock: typeof source.supplierStock === 'number' ? source.supplierStock : null,
     supplierAvailability: source.supplierAvailability ?? 'UNKNOWN',
     supplierStockUpdatedAt: source.supplierStockUpdatedAt ?? null,

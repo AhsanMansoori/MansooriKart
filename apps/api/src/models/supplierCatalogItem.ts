@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 
 /**
  * The link between one supplier's catalog line and one MansooriKart `Product`.
@@ -21,7 +22,7 @@ const supplierCatalogItemSchema = new Schema(
     supplierSku: { type: String, required: true, trim: true, maxlength: 120 },
     supplierProductName: { type: String, trim: true, maxlength: 300 },
     supplierCost: { type: Number, required: true, min: 0 },
-    currency: { type: String, default: 'PKR', uppercase: true, maxlength: 3 },
+    currency: { type: String, default: DEFAULT_CURRENCY, uppercase: true, maxlength: 3 },
     /** Supplier-reported quantity. Advisory only — see `supplierStockUpdatedAt`. */
     supplierStock: { type: Number, min: 0 },
     supplierAvailability: { type: String, enum: ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK', 'UNKNOWN'], default: 'UNKNOWN', index: true },

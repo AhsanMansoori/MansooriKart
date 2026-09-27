@@ -75,7 +75,7 @@ test('checkout revalidates changed coupons and keeps failure/audit state safe', 
       .send({ addressId: String(a._id), paymentMethod: 'CASH_ON_DELIVERY', couponCode: 'capfinal', items: [{ productId: String(p._id), quantity: 1 }] });
     assert.equal(preview.status, 200);
     assert.deepEqual(Object.keys(preview.body.data).sort(), ['currency', 'discount', 'items', 'quoteHash', 'shipping', 'subtotal', 'tax', 'total'].sort());
-    assert.equal(preview.body.data.currency, 'PKR');
+    assert.equal(preview.body.data.currency, 'AED');
     await Product.updateOne({ _id: p._id }, { $set: { price: 1100 } });
     let r = await request(app)
       .post('/api/v1/checkout')

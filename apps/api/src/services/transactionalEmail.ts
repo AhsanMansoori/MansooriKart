@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 import { User } from '../models/user.js';
 
 /**
@@ -154,7 +155,7 @@ export function buildOrderConfirmationContent(order: Record<string, any>, custom
     shipping: Number(order['shipping'] ?? 0),
     tax: Number(order['tax'] ?? 0),
     total: Number(order['total'] ?? 0),
-    currency: String(order['currency'] ?? 'PKR'),
+    currency: String(order['currency'] ?? DEFAULT_CURRENCY),
     paymentMethod: String(order['paymentMethod'] ?? ''),
     paymentStatus: String(order['paymentStatus'] ?? ''),
     shippingAddressSummary: summariseAddress(order['shippingAddress']),

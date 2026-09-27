@@ -56,7 +56,7 @@ test('checkout is authoritative, idempotent, owner-scoped and cancellation resto
       .send({ addressId: String(address._id), paymentMethod: 'CASH_ON_DELIVERY' });
     assert.equal(r.status, 201);
     const id = r.body.data._id;
-    assert.equal(r.body.data.total, 350);
+    assert.equal(r.body.data.total, 120);
     assert.equal(r.body.data.paymentStatus, 'UNPAID');
     assert.equal((await Product.findById(p._id).lean()).stock, 1);
     r = await request(app)

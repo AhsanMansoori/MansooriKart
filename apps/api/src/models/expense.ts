@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 
 /**
  * Operating expense record. This is a deliberately small bookkeeping document,
@@ -58,7 +59,7 @@ const expenseSchema = new Schema(
     taxAmount: { type: Number, min: 0, default: 0 },
     // Server-derived (`amount + taxAmount`). Never client-controlled.
     totalAmount: { type: Number, required: true, min: 0.01 },
-    currency: { type: String, default: 'PKR', uppercase: true, maxlength: 3 },
+    currency: { type: String, default: DEFAULT_CURRENCY, uppercase: true, maxlength: 3 },
     expenseDate: { type: Date, required: true, index: true },
     paymentMethod: { type: String, enum: EXPENSE_PAYMENT_METHODS, default: 'CASH' },
     // Optional operational link to a known counterparty. A supplier link never

@@ -93,29 +93,29 @@ test('store configuration is one typed authority with safe defaults and no crede
     assert.equal(await StoreConfiguration.countDocuments(), 1);
     assert.equal(await StoreConfiguration.countDocuments({ key: 'STORE' }), 1);
 
-    /* ------------ §18, §20, §29 defaults are Pakistan-shaped and tax starts off */
+    /* ------------ §18, §20, §29 defaults are UAE-shaped and VAT is enabled */
     let r = await request(app).get('/api/v1/admin/settings').set(auth(st));
     assert.equal(r.body.data.storeName, 'MansooriKart');
-    assert.equal(r.body.data.defaultCurrency, 'PKR');
+    assert.equal(r.body.data.defaultCurrency, 'AED');
     assert.equal(r.body.data.currencyDisplay, 'SYMBOL');
-    assert.equal(r.body.data.timezone, 'Asia/Karachi');
-    assert.equal(r.body.data.defaultLocale, 'en-PK');
+    assert.equal(r.body.data.timezone, 'Asia/Dubai');
+    assert.equal(r.body.data.defaultLocale, 'en-AE');
     assert.equal(r.body.data.orderPrefix, 'MK');
     assert.equal(r.body.data.lowStockThreshold, 5);
     assert.equal(r.body.data.maintenanceMode, false);
-    assert.equal(r.body.data.contact.country, 'Pakistan');
+    assert.equal(r.body.data.contact.country, 'United Arab Emirates');
     assert.deepEqual(r.body.data.socialLinks, []);
     assert.equal(r.body.data.seo.robots, 'index,follow');
     assert.equal(r.body.data.shipping.enabled, true);
-    assert.equal(r.body.data.shipping.standardFee, 250);
+    assert.equal(r.body.data.shipping.standardFee, 15);
     assert.equal(r.body.data.shipping.freeShippingEnabled, true);
-    assert.equal(r.body.data.shipping.freeShippingThreshold, 5000);
+    assert.equal(r.body.data.shipping.freeShippingThreshold, 200);
     assert.equal(r.body.data.shipping.codEnabled, true);
-    assert.equal(r.body.data.tax.enabled, false);
-    assert.equal(r.body.data.tax.defaultRate, 0);
+    assert.equal(r.body.data.tax.enabled, true);
+    assert.equal(r.body.data.tax.defaultRate, 5);
     assert.equal(r.body.data.tax.pricesIncludeTax, false);
     assert.equal(r.body.data.tax.displayTaxSeparately, true);
-    assert.equal(r.body.data.tax.label, 'Tax');
+    assert.equal(r.body.data.tax.label, 'VAT');
     assert.equal(r.body.data.email.fromName, 'MansooriKart');
     assert.equal(r.body.data.email.orderConfirmationEnabled, true);
     assert.equal(r.body.data.updatedBy, null);
@@ -138,9 +138,9 @@ test('store configuration is one typed authority with safe defaults and no crede
       'tax',
       'maintenance',
     ]);
-    assert.deepEqual(r.body.data.currency, { code: 'PKR', display: 'SYMBOL' });
-    assert.equal(r.body.data.timezone, 'Asia/Karachi');
-    assert.equal(r.body.data.locale, 'en-PK');
+    assert.deepEqual(r.body.data.currency, { code: 'AED', display: 'SYMBOL' });
+    assert.equal(r.body.data.timezone, 'Asia/Dubai');
+    assert.equal(r.body.data.locale, 'en-AE');
     assert.deepEqual(r.body.data.maintenance, { enabled: false, message: MAINTENANCE_DEFAULT_MESSAGE });
     assert.deepEqual(Object.keys(r.body.data.tax), ['enabled', 'label', 'displayTaxSeparately', 'pricesIncludeTax']);
     assert.deepEqual(Object.keys(r.body.data.shipping), [
@@ -410,8 +410,8 @@ test('store configuration is one typed authority with safe defaults and no crede
       { shipping: { standardFee: 0 } },
       { tax: { enabled: true } },
       { socialLinks: [] },
-      { defaultCurrency: 'PKR', unknownField: 1 },
-      { defaultCurrency: 'PKRR' },
+      { defaultCurrency: 'AED', unknownField: 1 },
+      { defaultCurrency: 'AEDD' },
       { orderPrefix: 'mk-2026' },
       { lowStockThreshold: -1 },
       { lowStockThreshold: 10_001 },
@@ -462,8 +462,8 @@ test('store configuration is one typed authority with safe defaults and no crede
     await request(app)
       .patch('/api/v1/admin/settings/store')
       .set(auth(st))
-      .send({ storeName: 'MansooriKart', defaultCurrency: 'PKR', currencyDisplay: 'SYMBOL', timezone: 'Asia/Karachi' });
-    assert.equal((await request(app).get('/api/v1/store/config')).body.data.currency.code, 'PKR');
+      .send({ storeName: 'MansooriKart', defaultCurrency: 'AED', currencyDisplay: 'SYMBOL', timezone: 'Asia/Dubai' });
+    assert.equal((await request(app).get('/api/v1/store/config')).body.data.currency.code, 'AED');
 
     /* ------------ §38 maintenance mode closes storefront content and nothing else */
     r = await request(app)
@@ -558,8 +558,9 @@ test('shipping, tax and cash-on-delivery settings govern checkout without rewrit
         status: 'ACTIVE',
       });
     const cheap = await product('Wireless Earbuds', 1_000);
-    const mid = await product('Bluetooth Speaker', 4_999);
+    const mid = await product('Bluetooth Speaker', 100);
     const dear = await product('Gaming Console', 5_000);
+    const atThreshold = await product('Power Bank', 200);
     /** One checkout against a freshly seeded cart, so each case is independent. */
     const buy = async (item: any, quantity: number, address: any, key: string, extra: Record<string, unknown> = {}) => {
       await Cart.deleteMany({ user: buyer._id });
@@ -572,25 +573,27 @@ test('shipping, tax and cash-on-delivery settings govern checkout without rewrit
     };
     const settings = (section: string, body: Record<string, unknown>) => request(app).patch(`/api/v1/admin/settings/${section}`).set(auth(st)).send(body);
 
-    /* ------------ §26–27, §29 an unconfigured store charges exactly what it charged before */
+    /* ------------ §26–27, §29 an unconfigured store charges UAE defaults */
     let r = await buy(cheap, 1, karachi, 'cfg-historical-order');
     assert.equal(r.status, 201, JSON.stringify(r.body));
     const historical = r.body.data;
     assert.equal(historical.subtotal, 1_000);
     assert.equal(historical.discount, 0);
-    assert.equal(historical.shipping, 250);
-    assert.equal(historical.tax, 0);
-    assert.equal(historical.total, 1_250);
-    assert.equal(historical.currency, 'PKR');
+    assert.equal(historical.shipping, 0);
+    assert.equal(historical.tax, 50);
+    assert.equal(historical.total, 1_050);
+    assert.equal(historical.currency, 'AED');
     assert.equal(historical.paymentMethod, 'CASH_ON_DELIVERY');
 
     /* ------------ §63 the free-shipping threshold is a boundary, tested on both sides */
     r = await buy(mid, 1, karachi, 'cfg-below-threshold');
-    assert.equal(r.body.data.shipping, 250);
-    assert.equal(r.body.data.total, 5_249);
-    r = await buy(dear, 1, karachi, 'cfg-at-threshold');
+    assert.equal(r.body.data.shipping, 15);
+    assert.equal(r.body.data.tax, 5);
+    assert.equal(r.body.data.total, 120);
+    r = await buy(atThreshold, 1, karachi, 'cfg-at-threshold');
     assert.equal(r.body.data.shipping, 0);
-    assert.equal(r.body.data.total, 5_000);
+    assert.equal(r.body.data.tax, 10);
+    assert.equal(r.body.data.total, 210);
 
     /* ------------ §28, §30 a client cannot supply shipping, tax or any total */
     const ordersBeforeInjection = await Order.countDocuments();
@@ -625,17 +628,19 @@ test('shipping, tax and cash-on-delivery settings govern checkout without rewrit
     assert.equal((await request(app).get('/api/v1/store/config')).body.data.shipping.standardFee, 400);
     r = await buy(dear, 1, karachi, 'cfg-new-standard-fee');
     assert.equal(r.body.data.shipping, 400);
-    assert.equal(r.body.data.total, 5_400);
+    assert.equal(r.body.data.tax, 250);
+    assert.equal(r.body.data.total, 5_650);
     // A city override applies where the threshold has not been met…
     r = await buy(cheap, 1, lahore, 'cfg-city-override');
     assert.equal(r.body.data.shipping, 700);
-    assert.equal(r.body.data.total, 1_700);
+    assert.equal(r.body.data.tax, 50);
+    assert.equal(r.body.data.total, 1_750);
     // …and free shipping still wins over it once the order is large enough.
     r = await buy(dear, 2, lahore, 'cfg-threshold-beats-override');
     assert.equal(r.body.data.subtotal, 10_000);
     assert.equal(r.body.data.shipping, 0);
-    assert.equal(r.body.data.total, 10_000);
-    assert.equal(r.body.data.tax, 0);
+    assert.equal(r.body.data.tax, 500);
+    assert.equal(r.body.data.total, 10_500);
 
     /* ------------ §29–30 tax is off until an admin turns it on, then server-computed */
     assert.equal((await settings('tax', { enabled: true, defaultRate: 10, label: 'GST' })).status, 200);
@@ -663,16 +668,16 @@ test('shipping, tax and cash-on-delivery settings govern checkout without rewrit
 
     /* ------------ §31–32, §65 a configuration change never restates a historical order */
     const stored: any = await Order.findById(historical._id).lean();
-    assert.equal(stored.shipping, 250);
-    assert.equal(stored.tax, 0);
-    assert.equal(stored.total, 1_250);
+    assert.equal(stored.shipping, 0);
+    assert.equal(stored.tax, 50);
+    assert.equal(stored.total, 1_050);
     r = await request(app).get(`/api/v1/orders/${historical._id}/invoice`).set(auth(ct));
     assert.equal(r.status, 200);
     const invoice = r.body.data;
     assert.equal(invoice.subtotal, 1_000);
-    assert.equal(invoice.shipping, 250);
-    assert.equal(invoice.tax, 0);
-    assert.equal(invoice.total, 1_250);
+    assert.equal(invoice.shipping, 0);
+    assert.equal(invoice.tax, 50);
+    assert.equal(invoice.total, 1_050);
     assert.equal(
       (await settings('invoice', { footerNote: 'Thank you for shopping with MansooriKart.', showTaxNumber: true, contactLine: 'support@mansoorikart.test' }))
         .status,
@@ -687,9 +692,9 @@ test('shipping, tax and cash-on-delivery settings govern checkout without rewrit
     assert.match(String(pdf.headers['content-type']), /pdf/);
     // The customer-facing order is unchanged too, so a reprint and a re-read agree.
     r = await request(app).get(`/api/v1/orders/${historical._id}`).set(auth(ct));
-    assert.equal(r.body.data.shipping, 250);
-    assert.equal(r.body.data.tax, 0);
-    assert.equal(r.body.data.total, 1_250);
+    assert.equal(r.body.data.shipping, 0);
+    assert.equal(r.body.data.tax, 50);
+    assert.equal(r.body.data.total, 1_050);
 
     /* ------------ §66 Finance and Reports read recorded amounts, not the current rate */
     await Order.updateOne({ _id: taxedOrderId }, { $set: { orderStatus: 'DELIVERED', paymentStatus: 'PAID' } });

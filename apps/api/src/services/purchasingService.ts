@@ -1,6 +1,7 @@
 import { atomic } from './transaction.js';
 import crypto from 'node:crypto';
 import { Types } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 import { AuditLog } from '../models/auditLog.js';
 import { GoodsReceipt, PurchaseReturn } from '../models/goodsReceipt.js';
 import { Product } from '../models/product.js';
@@ -246,7 +247,7 @@ const createPurchaseOrderImpl = async (input: {
     location: destination.location,
     status: 'DRAFT',
     items: totals.lines,
-    currency: supplier.currency ?? 'PKR',
+    currency: supplier.currency ?? DEFAULT_CURRENCY,
     subtotal: totals.subtotal,
     shippingCost: totals.shippingCost,
     taxAmount: totals.taxAmount,
@@ -478,7 +479,7 @@ const receiveGoodsImpl = async (
     totalAccepted,
     totalRejected,
     acceptedValue: money(acceptedValue),
-    currency: purchaseOrder.currency ?? 'PKR',
+    currency: purchaseOrder.currency ?? DEFAULT_CURRENCY,
     receivedAt: input.receivedAt ?? new Date(),
     note: input.note ?? null,
     receivedBy: oid(context.actor),
@@ -649,7 +650,7 @@ const returnToSupplierImpl = async (
     items: returnItems,
     totalQuantity,
     returnedValue: money(returnedValue),
-    currency: purchaseOrder.currency ?? 'PKR',
+    currency: purchaseOrder.currency ?? DEFAULT_CURRENCY,
     reason: input.reason,
     returnedAt: input.returnedAt ?? new Date(),
     createdBy: oid(context.actor),

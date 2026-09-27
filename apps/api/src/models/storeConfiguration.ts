@@ -42,7 +42,7 @@ const contactSchema = new Schema(
     city: { type: String, trim: true, maxlength: 120 },
     stateProvince: { type: String, trim: true, maxlength: 120 },
     postalCode: { type: String, trim: true, maxlength: 30 },
-    country: { type: String, trim: true, maxlength: 120, default: 'Pakistan' },
+    country: { type: String, trim: true, maxlength: 120, default: 'United Arab Emirates' },
     supportHours: { type: String, trim: true, maxlength: 300 },
   },
   { _id: false }

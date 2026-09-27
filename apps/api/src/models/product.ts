@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 
 const imageSchema = new Schema(
   {
@@ -23,7 +24,7 @@ const productSchema = new Schema(
     price: { type: Number, required: true, min: 0 },
     compareAtPrice: { type: Number, min: 0 },
     costPrice: { type: Number, min: 0 },
-    currency: { type: String, default: 'PKR', uppercase: true },
+    currency: { type: String, default: DEFAULT_CURRENCY, uppercase: true },
     stock: { type: Number, default: 0, min: 0 },
     lowStockThreshold: { type: Number, default: 5, min: 0 },
     status: { type: String, enum: ['DRAFT', 'ACTIVE', 'ARCHIVED'], default: 'ACTIVE', index: true },

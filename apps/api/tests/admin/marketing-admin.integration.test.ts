@@ -165,9 +165,9 @@ test('marketing admin manages coupons, promotions, banners and homepage without 
       .send({ addressId: String(address._id), paymentMethod: 'CASH_ON_DELIVERY', couponCode: 'save10' });
     assert.equal(r.status, 201);
     const orderId = r.body.data._id;
-    // 1000 − 10% = 900 discounted subtotal, plus the default PKR 250 delivery fee.
+    // 1000 − 10% = 900 discounted subtotal, free shipping over AED 200, 5% UAE VAT = 45. Total: 945.
     assert.equal(r.body.data.discount, 100);
-    assert.equal(r.body.data.total, 1150);
+    assert.equal(r.body.data.total, 945);
     const before = await Order.findById(orderId).lean();
     assert.equal((before as any).coupon.code, 'SAVE10');
     assert.equal((before as any).coupon.value, 10);
@@ -180,7 +180,7 @@ test('marketing admin manages coupons, promotions, banners and homepage without 
     assert.equal(r.body.data.distinctCustomers, 1);
     assert.equal(r.body.data.orders, 1);
     assert.equal(r.body.data.totalDiscountGiven, 100);
-    assert.equal(r.body.data.orderRevenue, 1150);
+    assert.equal(r.body.data.orderRevenue, 945);
     assert.equal(r.body.data.remainingUses, null);
     assert.ok(r.body.data.lastUsedAt);
 
@@ -193,7 +193,7 @@ test('marketing admin manages coupons, promotions, banners and homepage without 
     assert.equal((after as any).coupon.value, 10);
     assert.equal((after as any).coupon.actualDiscount, 100);
     assert.equal((after as any).discount, 100);
-    assert.equal((after as any).total, 1150);
+    assert.equal((after as any).total, 945);
     // The archive is a soft one for exactly this reason: redemptions still reference it.
     r = await request(app).delete(`/api/v1/admin/coupons/${couponId}`).set(auth(st));
     assert.equal(r.status, 200);

@@ -212,7 +212,7 @@ test('report ERP serves bounded, authorized, mutually consistent aggregates', as
       refundNumber: 'RF-R-1',
       order: realized._id,
       amount: 1_200,
-      currency: 'PKR',
+      currency: 'AED',
       status: 'COMPLETED',
       reason: 'Damaged',
       paymentMethod: 'CASH_ON_DELIVERY',
@@ -429,7 +429,7 @@ test('report ERP serves bounded, authorized, mutually consistent aggregates', as
       grossRevenue: 15_000,
       realizedRevenue: 10_000,
     });
-    assert.equal(sales.currency, 'PKR');
+    assert.equal(sales.currency, 'AED');
     assert.equal(response.body.meta.days, 30);
     assert.equal(response.body.meta.maxRangeDays, 366);
 
@@ -543,7 +543,7 @@ test('report ERP serves bounded, authorized, mutually consistent aggregates', as
     assert.equal(inventory.valuationBasis, 'LATEST_PURCHASE_COST');
     // §30 stated in the payload itself, not just in the docs.
     assert.equal(inventory.stockAuthority, 'INVENTORY_BALANCE');
-    assert.equal(inventory.currency, 'PKR');
+    assert.equal(inventory.currency, 'AED');
     assert.ok(Date.parse(inventory.asOf) > 0, 'a point-in-time report must say when it was taken');
     // Default sort is stock value, descending.
     assert.deepEqual(
@@ -757,7 +757,7 @@ test('report ERP serves bounded, authorized, mutually consistent aggregates', as
       sampled: { shipments: 1, deliveries: 1 },
       basis: 'ORDER_STATUS_HISTORY_TIMESTAMPS',
     });
-    assert.equal(orders.currency, 'PKR');
+    assert.equal(orders.currency, 'AED');
     // The status breakdown must account for every order in the window.
     assert.equal(
       orders.byOrderStatus.reduce((sum: number, row: any) => sum + row.orders, 0),
@@ -1234,7 +1234,7 @@ test('report ERP serves bounded, authorized, mutually consistent aggregates', as
       refundNumber: 'RF-R-FAILED',
       order: realized._id,
       amount: 9_000,
-      currency: 'PKR',
+      currency: 'AED',
       status: 'FAILED',
       reason: 'Collection never completed',
       paymentMethod: 'CASH_ON_DELIVERY',

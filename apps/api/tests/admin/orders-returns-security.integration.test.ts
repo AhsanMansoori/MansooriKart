@@ -355,14 +355,14 @@ test('returns, audit trails, ownership boundaries and strict contracts hold acro
 
     // Nothing above may have altered server-owned state.
     const finalOrder = await Order.findById(orderC._id).lean();
-    assert.equal(finalOrder!.total, 1250);
+    assert.equal(finalOrder!.total, 1050);
     assert.equal(finalOrder!.subtotal, 1000);
-    assert.equal(finalOrder!.shipping, 250);
+    assert.equal(finalOrder!.shipping, 0);
     assert.equal(finalOrder!.discount, 0);
     assert.equal(finalOrder!.orderStatus, 'PENDING');
     assert.equal(finalOrder!.paymentStatus, 'UNPAID');
     assert.equal(finalOrder!.paymentMethod, 'CASH_ON_DELIVERY');
-    assert.equal(finalOrder!.currency, 'PKR');
+    assert.equal(finalOrder!.currency, 'AED');
     assert.equal(String(finalOrder!.customer), String(a._id));
     assert.equal(finalOrder!.statusHistory.length, 1);
     assert.equal(finalOrder!.refundedTotal, 0);

@@ -1,5 +1,6 @@
 import { type NextFunction, type Response } from 'express';
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '../../config/storefront.js';
 import { Expense } from '../../models/expense.js';
 import {
   changeExpenseStatus,
@@ -46,7 +47,7 @@ const serializeExpense = (document: any) => ({
   amount: document.amount,
   taxAmount: document.taxAmount ?? 0,
   totalAmount: document.totalAmount,
-  currency: document.currency ?? 'PKR',
+  currency: document.currency ?? DEFAULT_CURRENCY,
   expenseDate: document.expenseDate,
   paymentMethod: document.paymentMethod ?? null,
   supplier: document.supplier
@@ -125,7 +126,7 @@ export async function getExpensesSummary(request: any, response: Response, next:
         voided: map['VOIDED'] ?? { count: 0, total: 0 },
         realizedExpenses: map['APPROVED']?.total ?? 0,
         byCategory: categories,
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         basis: 'APPROVED_EXPENSES_ONLY',
       },
       200,
@@ -234,7 +235,7 @@ export async function getFinanceDashboard(request: any, response: Response, next
           grossProfit: { value: before.grossProfit, change: changePercent(totals.grossProfit, before.grossProfit) },
           operatingProfit: { value: before.operatingProfit, change: changePercent(totals.operatingProfit, before.operatingProfit) },
         },
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         basis: 'MANAGEMENT_REPORTING_NOT_STATUTORY_ACCOUNTING',
       },
       200,
@@ -275,7 +276,7 @@ export async function getFinanceAnalytics(request: any, response: Response, next
           operatingProfit: totals.operatingProfit,
           taxCollected: totals.taxCollected,
         },
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         maxRangeDays: MAX_RANGE_DAYS,
       },
       200,
@@ -311,7 +312,7 @@ export async function getFinanceProfitLoss(request: any, response: Response, nex
         expenseTaxPaid: totals.operatingExpenseTax,
         costBasis: 'LATEST_PURCHASE_COST',
         cogsCoverage: totals.cogs,
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         basis: 'MANAGEMENT_PROFIT_AND_LOSS_SUMMARY',
         excludes: [
           'CORPORATE_INCOME_TAX',

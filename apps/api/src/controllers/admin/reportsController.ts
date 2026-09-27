@@ -1,5 +1,6 @@
 import { type NextFunction, type Response } from 'express';
 import { z } from 'zod';
+import { DEFAULT_CURRENCY } from '../../config/storefront.js';
 import { Expense } from '../../models/expense.js';
 import { GoodsReceipt, PurchaseReturn } from '../../models/goodsReceipt.js';
 import { InventoryBalance } from '../../models/inventoryBalance.js';
@@ -129,7 +130,7 @@ export async function getSalesReport(request: any, response: Response, next: Nex
           grossRevenue: money(row.grossRevenue),
           realizedRevenue: money(row.realizedRevenue),
         })),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
       },
       200,
       rangeMeta(range)
@@ -311,7 +312,7 @@ export async function getInventoryReport(request: any, response: Response, next:
         valuationBasis: 'LATEST_PURCHASE_COST',
         stockAuthority: 'INVENTORY_BALANCE',
         asOf: new Date().toISOString(),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
       },
       200,
       page(query, facet?.total?.[0]?.value ?? 0)
@@ -447,7 +448,7 @@ export async function getCustomerReport(request: any, response: Response, next: 
           lastOrderAt: row.lastOrderAt,
           acquiredInPeriod: Boolean(row.customer?.createdAt && row.customer.createdAt >= range.from && row.customer.createdAt <= range.to),
         })),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
       },
       200,
       meta(query, result.total[0]?.value ?? 0, range)
@@ -548,7 +549,7 @@ export async function getOrderReport(request: any, response: Response, next: Nex
           sampled: { shipments: flow.timedShipments, deliveries: flow.timedDeliveries },
           basis: 'ORDER_STATUS_HISTORY_TIMESTAMPS',
         },
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
       },
       200,
       rangeMeta(range)
@@ -617,7 +618,7 @@ export async function getPurchasesReport(request: any, response: Response, next:
           orders: row.orders,
           committedValue: money(row.committedValue),
         })),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         basis: 'PROCUREMENT_COMMITMENT_AND_GOODS_IN',
         note: purchases.note,
       },
@@ -660,7 +661,7 @@ export async function getFinanceReport(request: any, response: Response, next: N
         refundsByDate: refunds,
         costBasis: 'LATEST_PURCHASE_COST',
         cogsCoverage: totals.cogs,
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         basis: 'MANAGEMENT_REPORTING_NOT_STATUTORY_ACCOUNTING',
       },
       200,
@@ -692,7 +693,7 @@ export async function getProfitReport(request: any, response: Response, next: Ne
           operatingMargin: totals.operatingMargin,
           costBasis: 'LATEST_PURCHASE_COST',
           cogsCoverage: totals.cogs,
-          currency: 'PKR',
+          currency: DEFAULT_CURRENCY,
         },
         200,
         rangeMeta(range)
@@ -700,7 +701,7 @@ export async function getProfitReport(request: any, response: Response, next: Ne
     }
     if (query.groupBy === 'date') {
       const rows = await revenueByDate(range);
-      return sendSuccess(response, { groupBy: 'date', rows, costBasis: 'LATEST_PURCHASE_COST', currency: 'PKR' }, 200, rangeMeta(range));
+      return sendSuccess(response, { groupBy: 'date', rows, costBasis: 'LATEST_PURCHASE_COST', currency: DEFAULT_CURRENCY }, 200, rangeMeta(range));
     }
     const group =
       query.groupBy === 'product'
@@ -751,7 +752,7 @@ export async function getProfitReport(request: any, response: Response, next: Ne
           grossMargin: row.revenue > 0 ? money((row.profit / row.revenue) * 100) : null,
         })),
         costBasis: 'LATEST_PURCHASE_COST',
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
       },
       200,
       meta(query, facet?.total?.[0]?.value ?? 0, range)
@@ -796,7 +797,7 @@ export async function getTaxReport(request: any, response: Response, next: NextF
         },
         expenseTax: { total: totals.operatingExpenseTax, byCategory: expenseTax.map((row: any) => ({ category: row._id, tax: money(row.tax) })) },
         netTaxPosition: money(totals.taxCollected - totals.operatingExpenseTax),
-        currency: 'PKR',
+        currency: DEFAULT_CURRENCY,
         basis: 'RECORDED_TAX_AMOUNTS_ONLY',
         disclaimer:
           'Recorded amounts only. No jurisdiction rules, rate tables, exemptions, registration thresholds or filing obligations are evaluated, and this is not tax advice or a tax return.',

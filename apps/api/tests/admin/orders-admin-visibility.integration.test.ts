@@ -54,7 +54,7 @@ test('admin order list, filters, sorting, detail and query safety behave correct
       { user: a._id, items: [{ product: cheap._id, quantity: 1 }] },
       { user: b._id, items: [{ product: pricey._id, quantity: 1 }] },
     ]);
-    // Order A: 1000 subtotal + 250 shipping = 1250. Order B: 6000 subtotal, free shipping above 5000.
+    // Order A: 1000 subtotal, free shipping over AED 200, 5% VAT (50) = 1050. Order B: 6000 subtotal, free shipping, 5% VAT (300) = 6300.
     let r = await request(app)
       .post('/api/v1/checkout')
       .set('Authorization', `Bearer ${at}`)
@@ -62,7 +62,7 @@ test('admin order list, filters, sorting, detail and query safety behave correct
       .send({ addressId: String(addressA._id), paymentMethod: 'CASH_ON_DELIVERY' });
     assert.equal(r.status, 201);
     const orderA = r.body.data;
-    assert.equal(orderA.total, 1250);
+    assert.equal(orderA.total, 1050);
     r = await request(app)
       .post('/api/v1/checkout')
       .set('Authorization', `Bearer ${bt}`)
@@ -70,7 +70,7 @@ test('admin order list, filters, sorting, detail and query safety behave correct
       .send({ addressId: String(addressB._id), paymentMethod: 'CASH_ON_DELIVERY' });
     assert.equal(r.status, 201);
     const orderB = r.body.data;
-    assert.equal(orderB.total, 6000);
+    assert.equal(orderB.total, 6300);
 
     // Authorization on the list endpoint.
     assert.equal((await request(app).get('/api/v1/admin/orders')).status, 401);
@@ -216,7 +216,7 @@ test('admin order list, filters, sorting, detail and query safety behave correct
       assert.equal(response.status, 400, `expected 400 for ${JSON.stringify(body)}`);
     }
     const untouched = await Order.findById(orderA._id).lean();
-    assert.equal(untouched!.total, 1250);
+    assert.equal(untouched!.total, 1050);
     assert.equal(untouched!.orderStatus, 'CONFIRMED');
     assert.equal(String(untouched!.customer), String(a._id));
   } finally {

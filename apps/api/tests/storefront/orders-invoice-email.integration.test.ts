@@ -106,7 +106,7 @@ test('invoices are immutable and ownership-scoped, PDFs render real documents, a
     };
 
     const order = await placeOrder('invoice-order-one');
-    assert.equal(order.total, 1250);
+    assert.equal(order.total, 1050);
     // The invoice number is server-generated, derived from the unique order number, and persisted.
     assert.equal(order.invoiceNumber, `INV-${order.orderNumber}`);
     assert.match(order.invoiceNumber, /^INV-MK-\d{8}-[0-9A-F]{6}$/);
@@ -128,10 +128,10 @@ test('invoices are immutable and ownership-scoped, PDFs render real documents, a
     assert.equal(invoice.items[0].lineSubtotal, 1000);
     assert.equal(invoice.subtotal, 1000);
     assert.equal(invoice.discount, 0);
-    assert.equal(invoice.shipping, 250);
-    assert.equal(invoice.tax, 0);
-    assert.equal(invoice.total, 1250);
-    assert.equal(invoice.currency, 'PKR');
+    assert.equal(invoice.shipping, 0);
+    assert.equal(invoice.tax, 50);
+    assert.equal(invoice.total, 1050);
+    assert.equal(invoice.currency, 'AED');
     assert.equal(invoice.paymentMethod, 'CASH_ON_DELIVERY');
     assert.equal(invoice.paymentStatus, 'UNPAID');
     assert.equal(invoice.shippingAddress.city, 'Karachi');
@@ -175,7 +175,7 @@ test('invoices are immutable and ownership-scoped, PDFs render real documents, a
       'Immutable item',
       'INVOICE-SKU',
       '1000.00',
-      'PKR 1250.00',
+      'AED 1050.00',
       'CASH_ON_DELIVERY',
       'UNPAID',
       'Karachi',
@@ -277,10 +277,10 @@ test('invoices are immutable and ownership-scoped, PDFs render real documents, a
     assert.equal(content.items[0]!.lineSubtotal, 1000);
     assert.equal(content.subtotal, 1000);
     assert.equal(content.discount, 0);
-    assert.equal(content.shipping, 250);
-    assert.equal(content.tax, 0);
-    assert.equal(content.total, 1250);
-    assert.equal(content.currency, 'PKR');
+    assert.equal(content.shipping, 0);
+    assert.equal(content.tax, 50);
+    assert.equal(content.total, 1050);
+    assert.equal(content.currency, 'AED');
     assert.equal(content.paymentMethod, 'CASH_ON_DELIVERY');
     assert.equal(content.paymentStatus, 'UNPAID');
     assert.equal(content.shippingAddressSummary, 'Flat 4, Nazimabad, Karachi, Sindh, 74600, PK');
@@ -296,7 +296,7 @@ test('invoices are immutable and ownership-scoped, PDFs render real documents, a
     const historical = buildOrderConfirmationContent((await Order.findById(order._id).lean())!, { name: 'Invoice Owner', email: 'owner@d.test' });
     assert.equal(historical.items[0]!.name, 'Immutable item');
     assert.equal(historical.items[0]!.unitPrice, 1000);
-    assert.equal(historical.total, 1250);
+    assert.equal(historical.total, 1050);
     assert.equal(historical.invoiceNumber, order.invoiceNumber);
   } finally {
     resetEmailAdapter();

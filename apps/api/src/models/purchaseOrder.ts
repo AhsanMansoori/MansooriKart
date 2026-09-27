@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model } from 'mongoose';
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 
 /**
  * A purchase order line. `quantityOrdered` and `unitCost` are the commercial
@@ -47,7 +48,7 @@ const purchaseOrderSchema = new Schema(
       index: true,
     },
     items: { type: [purchaseOrderItemSchema], default: [] },
-    currency: { type: String, default: 'PKR', uppercase: true, maxlength: 3 },
+    currency: { type: String, default: DEFAULT_CURRENCY, uppercase: true, maxlength: 3 },
     subtotal: { type: Number, required: true, min: 0, default: 0 },
     shippingCost: { type: Number, min: 0, default: 0 },
     taxAmount: { type: Number, min: 0, default: 0 },

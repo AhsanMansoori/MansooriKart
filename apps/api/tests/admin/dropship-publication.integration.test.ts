@@ -357,7 +357,7 @@ test('publication is the only door to the storefront and it never leaks supplier
     ])
       assert.ok(!detail.includes(leak), `${leak} must never reach a public product payload (§56)`);
     assert.equal(response.body.data.price, 2500, '...and the storefront receives only the MansooriKart selling price (§56)');
-    assert.equal(response.body.data.currency, 'PKR');
+    assert.equal(response.body.data.currency, 'AED');
     assert.ok(response.body.data.compareAtPrice === 2999, 'the public compare price is allowed (§56)');
     const listBody = JSON.stringify(await publicList('?limit=100'));
     for (const leak of ['costPrice', 'supplierCost', 'fulfillmentType', 'sourceType', 'sellingPriceOverridden'])

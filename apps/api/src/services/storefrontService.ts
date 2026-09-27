@@ -57,7 +57,7 @@ const DEFAULT_SECTIONS: any[] = [
     settings: {
       features: [
         { icon: 'COD', title: 'Cash on delivery', subtitle: 'Pay when your order arrives' },
-        { icon: 'SHIPPING', title: 'Nationwide delivery', subtitle: 'Shipping across Pakistan' },
+        { icon: 'SHIPPING', title: 'Nationwide delivery', subtitle: 'Shipping across the UAE' },
         { icon: 'RETURNS', title: 'Easy returns', subtitle: 'Straightforward returns process' },
         { icon: 'SUPPORT', title: 'Customer support', subtitle: 'We answer every question' },
       ],

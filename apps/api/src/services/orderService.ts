@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from '../config/storefront.js';
 import { withAvailability } from './productAvailability.js';
 import { atomic, afterCommit, rethrowTransient } from './transaction.js';
 import crypto from 'node:crypto';
@@ -163,14 +164,14 @@ async function prepareCheckout(customer: string, input: CheckoutInput) {
   // Shipping and tax come from the one store-configuration authority, evaluated against
   // server-derived values only: the discounted subtotal the server just computed and the
   // city on the address the server loaded. Nothing the client sent can move either number,
-  // and an unconfigured store yields the historical PKR 250 fee waived at PKR 5,000 with
-  // zero tax. Both are then frozen onto the order as snapshots (§28, §30, §32).
+  // and an unconfigured store yields the default delivery fee waived at threshold with
+  // configured tax. Both are then frozen onto the order as snapshots (§28, §30, §32).
   const discountedSubtotal = money(Math.max(0, subtotal - couponInfo.discount));
   const shipping = quoteShipping(storeConfig, discountedSubtotal, (address as any).city),
     tax = computeTax(storeConfig, discountedSubtotal),
     total = money(Math.max(0, discountedSubtotal + shipping + tax));
   const quote = {
-    currency: 'PKR',
+    currency: DEFAULT_CURRENCY,
     subtotal,
     discount: couponInfo.discount,
     shipping,
