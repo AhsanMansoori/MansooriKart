@@ -1,0 +1,69 @@
+import type { NextFunction, Request, Response } from 'express';
+import * as cart from '../../services/cartService.js';
+import { sendFailure, sendSuccess } from '../../utils/api-response.js';
+
+// Availability failures are 409 (the request was well formed, the goods are not there);
+// anything else a cart operation raises is a missing resource. Supplier-side
+// unavailability joins the existing warehouse case rather than inventing a new shape.
+const CONFLICT_CODES = ['INSUFFICIENT_STOCK', 'SUPPLIER_UNAVAILABLE', 'SUPPLIER_OUT_OF_STOCK', 'IDEMPOTENCY_CONFLICT', 'CART_ITEMS_DUPLICATE', 'CART_LIMIT'];
+
+const respond = (error: unknown, request: Request, response: Response, next: NextFunction) => {
+  if (error instanceof cart.CartError)
+    return sendFailure(response, CONFLICT_CODES.includes(error.code) ? 409 : 404, error.code, error.message, request.requestId);
+  return next(error);
+};
+
+export const get = async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    return sendSuccess(response, await cart.getCart(request.auth!.userId));
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
+
+export const add = async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    return sendSuccess(response, await cart.addCartItem(request.auth!.userId, request.body.productId, request.body.quantity), 201);
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
+export const update = async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    return sendSuccess(response, await cart.updateCartItem(request.auth!.userId, String(request.params.productId), request.body.quantity));
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
+export const remove = async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    return sendSuccess(response, await cart.removeCartItem(request.auth!.userId, String(request.params.productId)));
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
+export const clear = async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    return sendSuccess(response, await cart.clearCart(request.auth!.userId));
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
+export const merge = async (request: Request, response: Response, next: NextFunction) => {
+  try {
+    return sendSuccess(response, await cart.mergeGuestCart(request.auth!.userId, request.body.items));
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
+
+export const sync = async (request: Request, response: Response, next: NextFunction) => {
+  const key = request.header('idempotency-key');
+  if (!key || key.length < 8 || key.length > 128)
+    return sendFailure(response, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'A valid Idempotency-Key header is required.', request.requestId);
+  try {
+    return sendSuccess(response, await cart.syncCart(request.auth!.userId, request.body.items, key));
+  } catch (error) {
+    return respond(error, request, response, next);
+  }
+};
