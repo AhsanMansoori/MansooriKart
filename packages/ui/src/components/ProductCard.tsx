@@ -19,11 +19,14 @@ export interface ProductData {
   category?: string;
   inStock?: boolean;
   slug?: string;
+  href?: string;
 }
 
 export interface ProductCardProps extends React.HTMLAttributes<HTMLDivElement> {
   /** The core product object */
   product: ProductData;
+  /** Optional link override */
+  href?: string;
   /** Callback fired when user clicks Add to Cart */
   onAddToCart?: (e: React.MouseEvent, product: ProductData) => void;
   /** Callback fired when user toggles wishlist */
@@ -67,6 +70,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
   (
     {
       product,
+      href,
       onAddToCart,
       onToggleWishlist,
       onQuickView,
@@ -87,6 +91,8 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
       video: 'aspect-[16/9]',
     };
 
+    const productHref = href || product.href || (product.slug ? `/product/${product.slug}` : undefined);
+
     // Calculate discount tag automatically if badge not explicitly supplied
     const computedBadge =
       product.badge ||
@@ -95,6 +101,22 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
         : undefined);
 
     const computedBadgeVariant = product.badgeVariant || (computedBadge?.startsWith('-') ? 'discount' : 'teal');
+
+    const imageElement =
+      product.image && !imageError ? (
+        <img
+          src={product.image}
+          alt={product.title}
+          onError={() => setImageError(true)}
+          className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center p-4 text-slate-300 bg-gradient-to-br from-slate-50 to-slate-100">
+          <ShoppingBag className="w-12 h-12 stroke-[1.25] text-slate-300 mb-1" />
+          <span className="text-[11px] font-medium text-slate-400 text-center line-clamp-1">{product.title}</span>
+        </div>
+      );
 
     return (
       <div
@@ -111,7 +133,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
         <div className={cn('relative w-full overflow-hidden bg-slate-50 flex items-center justify-center', aspectClasses[aspectRatio])}>
           {/* Badge at Top Left */}
           {computedBadge && (
-            <div className="absolute top-3 left-3 z-10">
+            <div className="absolute top-3 left-3 z-10 pointer-events-none">
               <Badge variant={computedBadgeVariant} size="sm">
                 {computedBadge}
               </Badge>
@@ -153,19 +175,12 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
           )}
 
           {/* Product Image / Fallback Placeholder */}
-          {product.image && !imageError ? (
-            <img
-              src={product.image}
-              alt={product.title}
-              onError={() => setImageError(true)}
-              className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
-            />
+          {productHref ? (
+            <a href={productHref} className="block w-full h-full">
+              {imageElement}
+            </a>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-4 text-slate-300 bg-gradient-to-br from-slate-50 to-slate-100">
-              <ShoppingBag className="w-12 h-12 stroke-[1.25] text-slate-300 mb-1" />
-              <span className="text-[11px] font-medium text-slate-400 text-center line-clamp-1">{product.title}</span>
-            </div>
+            imageElement
           )}
         </div>
 
@@ -179,7 +194,13 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
             className="text-sm font-semibold text-brand-navy leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-brand-teal transition-colors"
             title={product.title}
           >
-            {product.title}
+            {productHref ? (
+              <a href={productHref} className="hover:text-brand-teal transition-colors">
+                {product.title}
+              </a>
+            ) : (
+              product.title
+            )}
           </h3>
 
           {/* Star Rating & Review Count */}

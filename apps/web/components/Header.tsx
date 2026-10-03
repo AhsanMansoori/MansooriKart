@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { Search, Heart, ShoppingBag, User, Menu, X, Sparkles, ChevronDown } from 'lucide-react';
 import { Button, Badge, Input, formatCurrency } from '@mansoorikart/ui';
-import { useCart, useStoreConfig } from './providers';
+import { useCart, useStoreConfig, useWishlist, useAuth } from './providers';
 import type { StorefrontConfig } from '../lib/api/types';
 
 interface HeaderProps {
@@ -12,10 +12,13 @@ interface HeaderProps {
   config?: StorefrontConfig;
 }
 
-export function Header({ wishlistCount = 0, config: propConfig }: HeaderProps) {
-  const { itemCount, subtotal } = useCart();
+export function Header({ wishlistCount: propWishlistCount, config: propConfig }: HeaderProps) {
+  const { itemCount, subtotal, setIsCartDrawerOpen } = useCart();
+  const { wishlistCount: contextWishlistCount } = useWishlist();
+  const { user, isAuthenticated } = useAuth();
   const { config: contextConfig } = useStoreConfig();
   const config = propConfig ?? contextConfig;
+  const wishlistCount = propWishlistCount ?? contextWishlistCount;
 
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -138,7 +141,7 @@ export function Header({ wishlistCount = 0, config: propConfig }: HeaderProps) {
 
               {/* Account */}
               <Link
-                href="/account/login"
+                href={isAuthenticated ? '/account' : '/login'}
                 className="flex items-center gap-2 p-2 text-slate-700 hover:text-brand-teal rounded-xl hover:bg-slate-50 transition-colors"
                 aria-label="Customer Account"
               >
@@ -146,15 +149,18 @@ export function Header({ wishlistCount = 0, config: propConfig }: HeaderProps) {
                   <User className="w-4 h-4" />
                 </div>
                 <div className="hidden xl:flex flex-col text-left">
-                  <span className="text-[11px] text-slate-400 leading-tight">Welcome</span>
-                  <span className="text-xs font-semibold text-brand-navy leading-tight">Sign In</span>
+                  <span className="text-[11px] text-slate-400 leading-tight">{isAuthenticated ? 'Hello' : 'Welcome'}</span>
+                  <span className="text-xs font-semibold text-brand-navy leading-tight truncate max-w-[100px]">
+                    {isAuthenticated ? user?.name?.split(' ')[0] : 'Sign In'}
+                  </span>
                 </div>
               </Link>
 
-              {/* Cart */}
-              <Link
-                href="/cart"
-                className="relative flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50 hover:bg-surface-mint border border-slate-200/80 hover:border-border-mint transition-all text-slate-800"
+              {/* Cart Button with Drawer Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsCartDrawerOpen(true)}
+                className="relative flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50 hover:bg-surface-mint border border-slate-200/80 hover:border-border-mint transition-all text-slate-800 cursor-pointer"
                 aria-label="Shopping Cart"
               >
                 <div className="relative">
@@ -173,7 +179,7 @@ export function Header({ wishlistCount = 0, config: propConfig }: HeaderProps) {
                   <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider leading-tight">Cart</span>
                   <span className="text-xs font-bold text-brand-navy leading-tight">{formatCurrency(subtotal, config.currency.code, 2)}</span>
                 </div>
-              </Link>
+              </button>
             </div>
           </div>
 

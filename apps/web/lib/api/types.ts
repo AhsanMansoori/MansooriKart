@@ -39,12 +39,62 @@ export interface ProductSummary {
   tags?: string[];
 }
 
+export interface CatalogProduct {
+  id: string;
+  name: string;
+  slug: string;
+  sku?: string;
+  description: string;
+  shortDescription?: string;
+  category: string;
+  brand: string;
+  images: Array<{ url: string; alt?: string; position?: number }> | string[];
+  price: number;
+  compareAtPrice?: number;
+  currency: string;
+  availableStock?: number | null;
+  availability?: {
+    canPurchase: boolean;
+    availableStock?: number | null;
+    status: string;
+  };
+  featured?: boolean;
+  ratingAverage: number;
+  ratingCount: number;
+  specs?: Record<string, string>;
+  features?: string[];
+  inTheBox?: string[];
+  colors?: Array<{ name: string; hex: string; inStock?: boolean }>;
+}
+
 export interface CategorySummary {
   id: string;
   name: string;
   slug: string;
   icon?: string;
+  image?: string;
   productCount?: number;
+}
+
+export interface BrandSummary {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  logo?: string;
+  productCount?: number;
+}
+
+export interface GetProductsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  brand?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sort?: 'newest' | 'price_asc' | 'price_desc' | 'rating';
+  featured?: 'true' | 'false';
 }
 
 export interface CartItem {
