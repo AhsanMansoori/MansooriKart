@@ -81,8 +81,8 @@ export const PriceDisplay = React.forwardRef<HTMLDivElement, PriceDisplayProps>(
 
     return (
       <div ref={ref} className={cn('inline-flex items-baseline flex-wrap', sizeConfig.gap, className)} {...props}>
-        <span className={cn('text-[#0B192C] tracking-tight', sizeConfig.current)}>
-          {showCurrency && <span className={cn('text-[#0D9488]', sizeConfig.currency)}>{currency}</span>}
+        <span className={cn('text-brand-navy tracking-tight', sizeConfig.current)}>
+          {showCurrency && <span className={cn('text-brand-teal', sizeConfig.currency)}>{currency}</span>}
           {new Intl.NumberFormat('en-AE', {
             minimumFractionDigits: amount % 1 !== 0 ? 2 : 0,
             maximumFractionDigits: 2,
@@ -92,7 +92,7 @@ export const PriceDisplay = React.forwardRef<HTMLDivElement, PriceDisplayProps>(
         {hasDiscount && <span className={cn('text-slate-400 line-through font-normal', sizeConfig.original)}>{formatCurrency(originalAmount, currency)}</span>}
 
         {hasDiscount && showDiscount && discountPercent > 0 && (
-          <span className={cn('rounded-full font-bold bg-[#EF4444]/10 text-[#EF4444]', sizeConfig.discount)}>-{discountPercent}%</span>
+          <span className={cn('rounded-full font-bold bg-brand-red/10 text-brand-red', sizeConfig.discount)}>-{discountPercent}%</span>
         )}
       </div>
     );

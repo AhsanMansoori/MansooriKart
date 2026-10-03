@@ -64,3 +64,62 @@ export interface CartSummary {
   total: number;
   currency: string;
 }
+
+export interface StorefrontConfig {
+  storeName: string;
+  legalName?: string | null;
+  tagline?: string | null;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
+  currency: {
+    code: string;
+    display: string;
+  };
+  timezone: string;
+  locale: string;
+  contact: {
+    supportEmail?: string | null;
+    supportPhone?: string | null;
+    whatsapp?: string | null;
+    supportHours?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    city?: string | null;
+    stateProvince?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+  };
+  socialLinks: Array<{ channel: string; url: string }>;
+  seo: {
+    metaTitle?: string | null;
+    metaDescription?: string | null;
+    metaKeywords?: string[];
+    canonicalUrl?: string | null;
+    robots?: string;
+    socialImageUrl?: string | null;
+    openGraph?: {
+      title?: string | null;
+      description?: string | null;
+      image?: string | null;
+    };
+    twitterHandle?: string | null;
+  };
+  shipping: {
+    enabled: boolean;
+    standardFee: number;
+    freeShippingEnabled: boolean;
+    freeShippingThreshold: number;
+    codEnabled: boolean;
+    deliveryEstimate?: string | null;
+  };
+  tax: {
+    enabled: boolean;
+    label: string;
+    displayTaxSeparately: boolean;
+    pricesIncludeTax: boolean;
+  };
+  maintenance: {
+    enabled: boolean;
+    message: string;
+  };
+}

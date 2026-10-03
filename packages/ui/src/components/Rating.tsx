@@ -69,7 +69,7 @@ export const Rating = React.forwardRef<HTMLDivElement, RatingProps>(
                 {/* Filled foreground star with clip-path */}
                 {fillLevel > 0 && (
                   <div className="absolute top-0 left-0 overflow-hidden h-full" style={{ width: `${fillLevel * 100}%` }}>
-                    <Star className={cn(sizeConfig.star, 'text-[#F59E0B] fill-[#F59E0B]')} />
+                    <Star className={cn(sizeConfig.star, 'text-brand-gold fill-brand-gold')} />
                   </div>
                 )}
               </div>

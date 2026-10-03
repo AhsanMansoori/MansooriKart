@@ -3,9 +3,11 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Truck, ShieldCheck, RotateCcw, Headphones, ShoppingBag, Send, Globe, Instagram, Facebook, Twitter, Linkedin } from 'lucide-react';
-import { Button, Input, TrustBadge } from '@mansoorikart/ui';
+import { Button, Input, TrustBadge, formatCurrency } from '@mansoorikart/ui';
+import { useStoreConfig } from './providers';
 
 export function Footer() {
+  const { config } = useStoreConfig();
   const [email, setEmail] = React.useState('');
   const [subscribed, setSubscribed] = React.useState(false);
 
@@ -36,15 +38,19 @@ export function Footer() {
   ];
 
   return (
-    <footer className="w-full bg-[#0B192C] text-slate-300">
+    <footer className="w-full bg-brand-navy text-slate-300">
       {/* Trust Badges Banner Section */}
-      <div className="border-b border-slate-800 bg-[#060E18]">
+      <div className="border-b border-slate-800 bg-brand-navy-dark">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <TrustBadge
               icon={<Truck className="w-5 h-5" />}
               title="Free Delivery in UAE"
-              subtitle="Orders over AED 150 delivered to your door"
+              subtitle={
+                config.shipping.freeShippingEnabled
+                  ? `Orders over ${formatCurrency(config.shipping.freeShippingThreshold, config.currency.code, 0)} delivered to your door`
+                  : 'Fast delivery to your door'
+              }
               variant="horizontal"
               iconVariant="teal"
               className="bg-slate-900/60 border border-slate-800 text-white"
@@ -83,11 +89,11 @@ export function Footer() {
           {/* Brand Info Column */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0D9488] to-[#10B981] flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-teal to-brand-mint flex items-center justify-center text-white shadow-md shadow-brand-mint/20">
                 <ShoppingBag className="w-4 h-4" />
               </div>
               <span className="text-xl font-extrabold text-white tracking-tight">
-                Mansoori<span className="text-[#10B981]">Kart</span>
+                Mansoori<span className="text-brand-mint">Kart</span>
               </span>
             </Link>
 
@@ -102,7 +108,7 @@ export function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
-                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-[#0D9488] hover:text-white transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-brand-teal hover:text-white transition-colors"
               >
                 <Instagram className="w-4 h-4" />
               </a>
@@ -111,7 +117,7 @@ export function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Facebook"
-                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-[#0D9488] hover:text-white transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-brand-teal hover:text-white transition-colors"
               >
                 <Facebook className="w-4 h-4" />
               </a>
@@ -120,7 +126,7 @@ export function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Twitter"
-                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-[#0D9488] hover:text-white transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-brand-teal hover:text-white transition-colors"
               >
                 <Twitter className="w-4 h-4" />
               </a>
@@ -129,7 +135,7 @@ export function Footer() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="LinkedIn"
-                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-[#0D9488] hover:text-white transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-brand-teal hover:text-white transition-colors"
               >
                 <Linkedin className="w-4 h-4" />
               </a>
@@ -142,7 +148,7 @@ export function Footer() {
             <ul className="space-y-2.5 text-sm text-slate-400">
               {exploreLinks.map(link => (
                 <li key={link.label}>
-                  <Link href={link.href} className="hover:text-[#10B981] transition-colors">
+                  <Link href={link.href} className="hover:text-brand-mint transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -156,7 +162,7 @@ export function Footer() {
             <ul className="space-y-2.5 text-sm text-slate-400">
               {customerCareLinks.map(link => (
                 <li key={link.label}>
-                  <Link href={link.href} className="hover:text-[#10B981] transition-colors">
+                  <Link href={link.href} className="hover:text-brand-mint transition-colors">
                     {link.label}
                   </Link>
                 </li>
@@ -172,7 +178,7 @@ export function Footer() {
             </p>
 
             {subscribed ? (
-              <div className="p-3 rounded-xl bg-emerald-950/60 border border-emerald-800/50 text-emerald-300 text-xs font-medium">
+              <div className="p-3 rounded-xl bg-brand-navy-dark/90 border border-brand-teal/40 text-brand-mint-light text-xs font-medium">
                 🎉 Thanks for subscribing! Check your inbox for your exclusive code.
               </div>
             ) : (
@@ -183,7 +189,7 @@ export function Footer() {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="bg-slate-900/90 border-slate-700 text-white placeholder:text-slate-500 focus:border-emerald-500 text-sm"
+                  className="bg-slate-900/90 border-slate-700 text-white placeholder:text-slate-500 focus:border-brand-mint text-sm"
                 />
                 <Button type="submit" variant="primary" size="md" className="w-full gap-2 text-xs font-bold">
                   <Send className="w-3.5 h-3.5" />
@@ -196,7 +202,7 @@ export function Footer() {
       </div>
 
       {/* Bottom Legal & Market Selector Bar */}
-      <div className="border-t border-slate-800 bg-[#060E18]/80 text-xs text-slate-500 py-6">
+      <div className="border-t border-slate-800 bg-brand-navy-dark/80 text-xs text-slate-500 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-center sm:text-left">
             <span>© 2026 MansooriKart LLC. All rights reserved.</span>
@@ -214,7 +220,7 @@ export function Footer() {
 
           {/* Market & Currency Selector showing AED | English */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 border border-slate-700/60 text-slate-300">
-            <Globe className="w-3.5 h-3.5 text-[#10B981]" />
+            <Globe className="w-3.5 h-3.5 text-brand-mint" />
             <span className="font-semibold text-white tracking-wide">AED | English</span>
             <span className="text-[10px] text-slate-400 uppercase font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">UAE</span>
           </div>

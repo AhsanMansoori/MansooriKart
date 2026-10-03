@@ -102,7 +102,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
         className={cn(
           'group relative flex flex-col rounded-2xl bg-white border border-slate-100 overflow-hidden',
           'transition-all duration-300 ease-out',
-          'hover:shadow-[0_14px_34px_-4px_rgba(13,148,136,0.12),0_6px_14px_-2px_rgba(11,25,44,0.04)] hover:border-teal-100 hover:-translate-y-1',
+          'hover:shadow-[0_14px_34px_-4px_rgba(13,148,136,0.12),0_6px_14px_-2px_rgba(11,25,44,0.04)] hover:border-border-teal hover:-translate-y-1',
           className
         )}
         {...props}
@@ -129,10 +129,10 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
             className={cn(
               'absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200',
               'bg-white/90 backdrop-blur-xs shadow-sm hover:scale-110 active:scale-95',
-              isWishlisted ? 'text-rose-500 bg-white shadow-rose-100' : 'text-slate-400 hover:text-rose-500'
+              isWishlisted ? 'text-brand-red bg-white shadow-xs' : 'text-slate-400 hover:text-brand-red'
             )}
           >
-            <Heart className={cn('w-4 h-4 transition-transform', isWishlisted && 'fill-rose-500 stroke-rose-500')} />
+            <Heart className={cn('w-4 h-4 transition-transform', isWishlisted && 'fill-brand-red stroke-brand-red')} />
           </button>
 
           {/* Quick View Hover Button */}
@@ -144,7 +144,7 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
                   e.stopPropagation();
                   onQuickView(e, product);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-xs text-white text-xs font-medium hover:bg-slate-900 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-navy/80 backdrop-blur-xs text-white text-xs font-medium hover:bg-brand-navy transition-colors shadow-sm"
               >
                 <Eye className="w-3.5 h-3.5" />
                 Quick View
@@ -172,11 +172,11 @@ export const ProductCard = React.forwardRef<HTMLDivElement, ProductCardProps>(
         {/* Card Body */}
         <div className="flex flex-col flex-1 p-4">
           {/* Category / Eyebrow */}
-          {product.category && <span className="text-[11px] font-semibold tracking-wider uppercase text-[#0D9488] mb-1 truncate">{product.category}</span>}
+          {product.category && <span className="text-[11px] font-semibold tracking-wider uppercase text-brand-teal mb-1 truncate">{product.category}</span>}
 
           {/* Product Title */}
           <h3
-            className="text-sm font-semibold text-[#0B192C] leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-[#0D9488] transition-colors"
+            className="text-sm font-semibold text-brand-navy leading-snug line-clamp-2 min-h-[2.5rem] group-hover:text-brand-teal transition-colors"
             title={product.title}
           >
             {product.title}

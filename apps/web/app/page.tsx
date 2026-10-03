@@ -26,16 +26,16 @@ export default function FoundationShowcase() {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
       {/* Foundation Status Banner */}
-      <div className="rounded-2xl p-6 bg-gradient-to-r from-teal-900 to-slate-900 text-white shadow-xl relative overflow-hidden">
+      <div className="rounded-2xl p-6 bg-gradient-to-r from-brand-navy-dark to-slate-900 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold">
+            <Badge variant="teal" size="lg" className="inline-flex items-center gap-2 bg-brand-mint/20 text-brand-mint-light border-0">
               <Sparkles className="w-3.5 h-3.5" /> Phase 3a: Storefront Foundation Verified
-            </div>
+            </Badge>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Design System & Shared Component Library</h1>
             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
               All core UI components, design tokens, typography, and API client layers have been established in{' '}
-              <code className="text-emerald-400">packages/ui</code> and verified in the <code className="text-emerald-400">apps/web</code> shell.
+              <code className="text-brand-mint-light">packages/ui</code> and verified in the <code className="text-brand-mint-light">apps/web</code> shell.
             </p>
           </div>
 
@@ -128,7 +128,7 @@ export default function FoundationShowcase() {
             </CardContent>
             <CardFooter className="bg-slate-50 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs text-slate-500 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Validation OK
+                <CheckCircle2 className="w-4 h-4 text-brand-mint" /> Validation OK
               </span>
               <Button variant="ghost" size="sm">
                 Cancel

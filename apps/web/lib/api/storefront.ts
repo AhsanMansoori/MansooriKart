@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { ProductSummary, CategorySummary, CartSummary } from './types';
+import { ProductSummary, CategorySummary, CartSummary, StorefrontConfig } from './types';
 
 export const storefrontApi = {
   // Catalog endpoints
@@ -21,12 +21,6 @@ export const storefrontApi = {
 
   removeFromCart: (productId: string) => apiClient.delete<CartSummary>(`/cart/items/${productId}`),
 
-  // Public system / market config
-  getConfig: () =>
-    apiClient.get<{
-      defaultCurrency: string;
-      defaultMarket: string;
-      supportedCurrencies: string[];
-      vatRate: number;
-    }>('/storefront/config'),
+  // Public system / store config
+  getConfig: () => apiClient.get<StorefrontConfig>('/store/config'),
 };

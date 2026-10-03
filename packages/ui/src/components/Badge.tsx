@@ -8,13 +8,13 @@ export const badgeVariants = cva(
     variants: {
       variant: {
         default: 'border-transparent bg-slate-100 text-slate-800',
-        primary: 'border-transparent bg-emerald-500 text-white shadow-xs',
-        mint: 'border-transparent bg-emerald-50 text-emerald-700 font-bold',
-        teal: 'border-transparent bg-teal-50 text-teal-700 font-bold',
-        discount: 'border-transparent bg-rose-500 text-white font-extrabold shadow-xs tracking-tight',
-        bestseller: 'border-transparent bg-amber-400 text-amber-950 font-bold shadow-xs',
-        new: 'border-transparent bg-teal-600 text-white font-bold shadow-xs',
-        navy: 'border-transparent bg-[#0B192C] text-white font-medium',
+        primary: 'border-transparent bg-brand-mint text-white shadow-xs',
+        mint: 'border-transparent bg-surface-mint text-brand-teal-dark font-bold',
+        teal: 'border-transparent bg-surface-teal text-brand-teal font-bold',
+        discount: 'border-transparent bg-brand-red text-white font-extrabold shadow-xs tracking-tight',
+        bestseller: 'border-transparent bg-brand-gold text-brand-navy-dark font-bold shadow-xs',
+        new: 'border-transparent bg-brand-teal text-white font-bold shadow-xs',
+        navy: 'border-transparent bg-brand-navy text-white font-medium',
         outline: 'border border-slate-200 text-slate-700 bg-white',
       },
       size: {

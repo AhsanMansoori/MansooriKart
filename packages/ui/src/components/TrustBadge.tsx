@@ -6,7 +6,7 @@ export interface TrustBadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   icon: React.ReactNode;
   /** Primary badge title (e.g. "Free Delivery", "Secure Payment") */
   title: string;
-  /** Secondary descriptive subtitle (e.g. "On orders over AED 150", "100% Protected") */
+  /** Secondary descriptive subtitle (e.g. "On orders over AED 200", "100% Protected") */
   subtitle?: string;
   /** Visual presentation style */
   variant?: 'card' | 'horizontal' | 'compact';
@@ -21,9 +21,9 @@ const variantStyles = {
 };
 
 const iconContainerStyles = {
-  mint: 'bg-[#F0FDF4] text-[#10B981] border border-[#DCFCE7]',
-  teal: 'bg-[#F0FDFA] text-[#0D9488] border border-[#CCFBF1]',
-  navy: 'bg-[#0B192C]/5 text-[#0B192C] border border-[#0B192C]/10',
+  mint: 'bg-surface-mint text-brand-mint border border-border-mint',
+  teal: 'bg-surface-teal text-brand-teal border border-border-teal',
+  navy: 'bg-brand-navy/5 text-brand-navy border border-brand-navy/10',
   ghost: 'bg-transparent text-current border-0',
 };
 
@@ -36,7 +36,7 @@ const iconContainerStyles = {
  * <TrustBadge
  *   icon={<Truck className="w-5 h-5" />}
  *   title="Free Delivery"
- *   subtitle="On orders above AED 150"
+ *   subtitle="On orders above AED 200"
  *   variant="horizontal"
  * />
  * ```
@@ -56,7 +56,7 @@ export const TrustBadge = React.forwardRef<HTMLDivElement, TrustBadgeProps>(
         </div>
 
         <div className={cn(variant === 'card' ? 'w-full' : 'flex-1 min-w-0')}>
-          <h4 className="text-sm font-semibold text-[#0B192C] tracking-tight leading-snug">{title}</h4>
+          <h4 className="text-sm font-semibold text-brand-navy tracking-tight leading-snug">{title}</h4>
           {subtitle && <p className="text-xs text-slate-500 font-normal mt-0.5 leading-relaxed truncate">{subtitle}</p>}
         </div>
       </div>
