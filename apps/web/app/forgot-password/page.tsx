@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Mail, ArrowLeft, CheckCircle2, ShoppingBag } from 'lucide-react';
 import { Button, Input } from '@mansoorikart/ui';
@@ -83,13 +84,8 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-100 shadow-xl p-8 sm:p-10 space-y-6">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-teal to-brand-mint flex items-center justify-center text-white shadow-md">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-brand-navy">
-              Mansoori<span className="text-brand-teal">Kart</span>
-            </span>
+          <Link href="/" className="inline-flex items-center justify-center">
+            <Image src="/logo.svg" alt="MansooriKart - Shop More Live Better" width={160} height={32} className="h-8 w-auto object-contain" priority />
           </Link>
           <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Password Recovery Journey</p>
         </div>

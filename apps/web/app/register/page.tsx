@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Mail, User, Phone, ShoppingBag, ShieldCheck, Truck, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button, Input } from '@mansoorikart/ui';
@@ -59,12 +60,15 @@ export default function RegisterPage() {
         <div className="lg:col-span-5 bg-brand-navy p-8 sm:p-10 text-white flex flex-col justify-between relative overflow-hidden">
           <div className="relative z-10 space-y-6">
             <Link href="/" className="inline-flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-teal to-brand-mint flex items-center justify-center text-white shadow-md">
-                <ShoppingBag className="w-5 h-5" />
+              <div className="bg-white/10 rounded-xl px-2.5 py-1.5 backdrop-blur-xs flex items-center">
+                <Image
+                  src="/logo.svg"
+                  alt="MansooriKart - Shop More Live Better"
+                  width={160}
+                  height={32}
+                  className="h-7 w-auto object-contain brightness-0 invert"
+                />
               </div>
-              <span className="text-xl font-extrabold tracking-tight">
-                Mansoori<span className="text-brand-teal">Kart</span>
-              </span>
             </Link>
 
             <div className="space-y-2">

@@ -25,7 +25,7 @@ export default function AccountLayout({ children }: AccountLayoutProps) {
     { label: 'My Orders', href: '/account/orders', icon: Package },
     { label: 'Saved Addresses', href: '/account/addresses', icon: MapPin },
     { label: 'Account Settings', href: '/account/settings', icon: Settings },
-    { label: 'My Wishlist', href: '/wishlist', icon: Heart },
+    { label: 'My Wishlist', href: '/account/wishlist', icon: Heart },
   ];
 
   return (

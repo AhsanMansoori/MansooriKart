@@ -17,8 +17,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: 'MansooriKart | Shop More · Live Better',
-  description:
-    'Curating gadgets, smart-home essentials, and premium accessories to help you live smarter every day with fast UAE delivery.',
+  description: 'Curating gadgets, smart-home essentials, and premium accessories to help you live smarter every day with fast UAE delivery.',
   keywords: ['MansooriKart', 'UAE ecommerce', 'Dubai online shopping', 'Electronics UAE', 'AED shopping'],
   openGraph: {
     title: 'MansooriKart | Shop More · Live Better',

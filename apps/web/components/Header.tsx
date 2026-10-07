@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Search, Heart, ShoppingBag, User, Menu, X, Sparkles, ChevronDown } from 'lucide-react';
 import { Button, Badge, Input, formatCurrency } from '@mansoorikart/ui';
 import { useCart, useStoreConfig, useWishlist, useAuth } from './providers';
@@ -90,15 +91,7 @@ export function Header({ wishlistCount: propWishlistCount, config: propConfig }:
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 shrink-0 group">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-teal to-brand-mint flex items-center justify-center text-white shadow-md shadow-brand-mint/20 group-hover:scale-105 transition-transform">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl font-extrabold tracking-tight text-brand-navy">
-                  Mansoori<span className="text-brand-teal">Kart</span>
-                </span>
-                <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold -mt-1">UAE Store</span>
-              </div>
+              <Image src="/logo.svg" alt="MansooriKart - Shop More Live Better" width={175} height={36} className="h-9 w-auto object-contain" priority />
             </Link>
 
             {/* Search Bar */}

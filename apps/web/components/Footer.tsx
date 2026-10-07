@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Truck, ShieldCheck, RotateCcw, Headphones, ShoppingBag, Send, Globe, Instagram, Facebook, Twitter, Linkedin } from 'lucide-react';
 import { Button, Input, TrustBadge, formatCurrency } from '@mansoorikart/ui';
 import { useStoreConfig } from './providers';
@@ -89,12 +90,15 @@ export function Footer() {
           {/* Brand Info Column */}
           <div className="lg:col-span-2 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-teal to-brand-mint flex items-center justify-center text-white shadow-md shadow-brand-mint/20">
-                <ShoppingBag className="w-4 h-4" />
+              <div className="bg-white/10 rounded-xl px-2.5 py-1.5 backdrop-blur-xs flex items-center">
+                <Image
+                  src="/logo.svg"
+                  alt="MansooriKart - Shop More Live Better"
+                  width={160}
+                  height={32}
+                  className="h-7 w-auto object-contain brightness-0 invert"
+                />
               </div>
-              <span className="text-xl font-extrabold text-white tracking-tight">
-                Mansoori<span className="text-brand-mint">Kart</span>
-              </span>
             </Link>
 
             <p className="text-sm text-slate-400 leading-relaxed max-w-sm">

@@ -1,0 +1,6 @@
+{
+  "name": "MansooriKart",
+  "description": "MansooriKart - UAE premier online marketplace for authentic electronics, tech gadgets, and lifestyle essentials with fast delivery.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

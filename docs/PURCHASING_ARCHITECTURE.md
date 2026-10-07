@@ -122,9 +122,7 @@ PurchaseOrder.findOneAndUpdate(
       })),
     },
   },
-  [
-    /* $map + $switch apply every line delta, then recompute status */
-  ],
+  [/* $map + $switch apply every line delta, then recompute status */],
   { new: true }
 );
 ```

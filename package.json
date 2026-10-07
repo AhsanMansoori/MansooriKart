@@ -4,17 +4,15 @@
   "description": "MansooriKart frontend, admin, and backend workspace orchestration.",
   "license": "MIT",
   "version": "1.1.0",
-  "engines": {
-    "node": ">=26 <27"
-  },
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:admin\"",
+    "dev": "npm run dev --workspace=@mansoorikart/web",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:admin\"",
     "dev:api": "npm run dev --workspace=@mansoorikart/api",
     "dev:web": "npm run dev --workspace=@mansoorikart/web",
     "dev:admin": "npm run dev --workspace=@mansoorikart/admin",
     "dev:frontend": "npm run dev --workspace=@mansoorikart/frontend",
-    "build": "npm run build:api",
+    "build": "npm run build --workspace=@mansoorikart/web",
     "build:api": "npm run build --workspace=@mansoorikart/api",
     "build:web": "npm run build --workspace=@mansoorikart/web",
     "build:admin": "npm run build --workspace=@mansoorikart/admin",

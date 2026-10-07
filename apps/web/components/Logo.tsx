@@ -16,13 +16,7 @@ export interface LogoProps {
   className?: string;
 }
 
-export function Logo({
-  variant = 'default',
-  size = 'md',
-  href = '/',
-  showTagline = true,
-  className = '',
-}: LogoProps) {
+export function Logo({ variant = 'default', size = 'md', href = '/', showTagline = true, className = '' }: LogoProps) {
   const sizeMap = {
     sm: { height: 28, width: 144, imgH: 'h-7', text: 'text-lg', sub: 'text-[8px]' },
     md: { height: 36, width: 185, imgH: 'h-9', text: 'text-xl', sub: 'text-[9px]' },
@@ -35,17 +29,16 @@ export function Logo({
   if (variant === 'iconOnly') {
     const content = (
       <div className={`relative aspect-square ${currentSize.imgH} flex items-center justify-center ${className}`}>
-        <Image
-          src="/logo-mark.png"
-          alt="MansooriKart"
-          width={40}
-          height={40}
-          className="object-contain w-auto h-full"
-          priority
-        />
+        <Image src="/logo-mark.png" alt="MansooriKart" width={40} height={40} className="object-contain w-auto h-full" priority />
       </div>
     );
-    return href ? <Link href={href} aria-label="MansooriKart Home">{content}</Link> : content;
+    return href ? (
+      <Link href={href} aria-label="MansooriKart Home">
+        {content}
+      </Link>
+    ) : (
+      content
+    );
   }
 
   // If dark background (e.g. Footer)
@@ -60,9 +53,15 @@ export function Logo({
             <rect x="0" y="60" width="22" height="9" rx="4.5" fill="#18C19F" />
             <rect x="10" y="76" width="18" height="9" rx="4.5" fill="#18C19F" />
             {/* M leg left */}
-            <path d="M38 20C38 14.4772 42.4772 10 48 10C53.5228 10 58 14.4772 58 20V92C58 97.5228 53.5228 102 48 102C42.4772 102 38 97.5228 38 92V20Z" fill="url(#tealGrad)" />
+            <path
+              d="M38 20C38 14.4772 42.4772 10 48 10C53.5228 10 58 14.4772 58 20V92C58 97.5228 53.5228 102 48 102C42.4772 102 38 97.5228 38 92V20Z"
+              fill="url(#tealGrad)"
+            />
             {/* Center chevron */}
-            <path d="M48 55L72 25C75.5 20.5 82.5 21 85.5 26C88.5 31 87.5 38 83 42L68 60L83 80C87.5 86 85 94 79 97C73 100 66 97 62 91L48 70" fill="url(#tealGrad)" />
+            <path
+              d="M48 55L72 25C75.5 20.5 82.5 21 85.5 26C88.5 31 87.5 38 83 42L68 60L83 80C87.5 86 85 94 79 97C73 100 66 97 62 91L48 70"
+              fill="url(#tealGrad)"
+            />
             {/* K right arm / Cart basket */}
             <path d="M82 25L108 45C112 48 110 55 105 55H70" stroke="#FFCE00" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" fill="none" />
             {/* K right leg */}
@@ -83,15 +82,17 @@ export function Logo({
           <span className={`${currentSize.text} font-black tracking-tight text-white leading-none`}>
             MANSOORI<span className="text-[#FFCE00]">KART</span>
           </span>
-          {showTagline && (
-            <span className={`${currentSize.sub} font-semibold uppercase tracking-widest text-[#18C19F] mt-1`}>
-              Shop More · Live Better
-            </span>
-          )}
+          {showTagline && <span className={`${currentSize.sub} font-semibold uppercase tracking-widest text-[#18C19F] mt-1`}>Shop More · Live Better</span>}
         </div>
       </div>
     );
-    return href ? <Link href={href} aria-label="MansooriKart Home">{content}</Link> : content;
+    return href ? (
+      <Link href={href} aria-label="MansooriKart Home">
+        {content}
+      </Link>
+    ) : (
+      content
+    );
   }
 
   // Default light background
